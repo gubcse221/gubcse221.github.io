@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured, Student } from './lib/supabase';
-import { Search, Facebook, Linkedin, Mail, Plus, Lock } from 'lucide-react';
+import { Search, Facebook, Linkedin, Mail, Plus, Lock, Phone } from 'lucide-react';
+
+const XIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
 
 function App() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -16,13 +22,12 @@ function App() {
     if (searchQuery.trim() === '') {
       setFilteredStudents(students);
     } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = students.filter(
-        (student) =>
-          student.name.toLowerCase().includes(query) ||
-          student.student_id.toLowerCase().includes(query)
+      const q = searchQuery.toLowerCase();
+      setFilteredStudents(
+        students.filter(
+          (s) => s.name.toLowerCase().includes(q) || s.student_id.toLowerCase().includes(q)
+        )
       );
-      setFilteredStudents(filtered);
     }
   }, [searchQuery, students]);
 
@@ -37,73 +42,89 @@ function App() {
         .select('*')
         .eq('authorized', 1)
         .order('student_id', { ascending: true });
-
       if (error) throw error;
       setStudents(data || []);
       setFilteredStudents(data || []);
-    } catch (error) {
-      console.error('Error fetching students:', error);
+    } catch (e) {
+      console.error('Error fetching students:', e);
     } finally {
       setLoading(false);
     }
   };
 
+  const heroCover =
+    students.length > 0
+      ? students[0].cover_photo_url || students[0].cover_photo_base64
+      : null;
+  const heroBg = heroCover ? `url(${heroCover})` : 'url(/assets/cover.JPG)';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50">
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-green-600 via-emerald-500 to-sky-500 opacity-90"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTEwYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHptMC0xMGMwLTIuMjEtMS43OS00LTQtNHMtNCAxLjc5LTQgNCAxLjc5IDQgNCA0IDQtMS43OSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>
-
-        <div className="relative z-10 container mx-auto px-4 py-16 text-white">
-          <div className="text-center mb-8">
-            <h1 className="text-5xl md:text-6xl font-bold mb-4 tracking-tight">
-              Green University of Bangladesh
-            </h1>
-            <div className="text-2xl md:text-3xl font-semibold mb-2">
-              Computer Science and Engineering
-            </div>
-            <div className="text-xl md:text-2xl mb-6 text-emerald-100">
-              Batch 221
-            </div>
-            <div className="text-3xl md:text-4xl font-bold italic text-sky-100 mb-2">
-              Return 0;
-            </div>
-            <div className="text-xl md:text-2xl text-emerald-50">
-              Graduation Day
-            </div>
+    <div className="min-h-screen bg-gray-100">
+      {/* Single cover from public/assets (or first student cover) as background */}
+      <header
+        className="relative min-h-[70vh] flex flex-col justify-end bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: heroBg || 'linear-gradient(135deg, #059669 0%, #0d9488 50%, #0284c7 100%)',
+        }}
+      >
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="relative z-10 container mx-auto px-4 py-12 text-white">
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            <img
+              src="/assets/green-logo.png"
+              alt="GUB"
+              className="h-16 w-auto object-contain drop-shadow-md"
+            />
+            <img
+              src="/assets/department-logo.jpg"
+              alt="CSE"
+              className="h-14 w-auto object-contain rounded-lg drop-shadow-md"
+            />
           </div>
+          <h1 className="text-4xl md:text-6xl font-bold mb-2 drop-shadow-lg">
+            Green University of Bangladesh
+          </h1>
+          <p className="text-xl md:text-2xl text-white/90 mb-1">
+            Computer Science and Engineering · Batch 221
+          </p>
+          <p className="text-2xl md:text-3xl font-semibold italic text-emerald-200">
+            Return 0; — Graduation Day
+          </p>
 
-          <div className="max-w-4xl mx-auto mt-12 space-y-6">
+          <div className="mt-8 max-w-xl">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={20}
+              />
               <input
                 type="text"
                 placeholder="Search by name or student ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 rounded-full text-gray-800 shadow-2xl focus:outline-none focus:ring-4 focus:ring-sky-300 text-lg"
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/95 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400"
               />
             </div>
+          </div>
 
-            <div className="flex gap-4 justify-center">
-              <a
-                href="/upload"
-                className="inline-flex items-center gap-2 bg-white hover:bg-emerald-50 text-green-600 font-bold px-8 py-3 rounded-full shadow-lg transition-all transform hover:scale-105"
-              >
-                <Plus size={20} />
-                Submit Information
-              </a>
-              <a
-                href="/admin"
-                className="inline-flex items-center gap-2 bg-white hover:bg-sky-50 text-sky-600 font-bold px-8 py-3 rounded-full shadow-lg transition-all transform hover:scale-105"
-              >
-                <Lock size={20} />
-                Admin Panel
-              </a>
-            </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a
+              href="/upload"
+              className="inline-flex items-center gap-2 bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-50 transition-colors"
+            >
+              <Plus size={18} />
+              Submit Information
+            </a>
+            <a
+              href="/admin"
+              className="inline-flex items-center gap-2 bg-white/90 text-sky-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-sky-50 transition-colors"
+            >
+              <Lock size={18} />
+              Admin
+            </a>
           </div>
         </div>
-      </div>
+      </header>
 
       {!isSupabaseConfigured && (
         <div className="container mx-auto px-4 py-4 text-center">
@@ -112,147 +133,102 @@ function App() {
           </div>
         </div>
       )}
+
       {loading ? (
-        <div className="container mx-auto px-4 py-16 text-center">
-          <div className="text-2xl text-gray-600">Loading students...</div>
+        <div className="container mx-auto px-4 py-16 text-center text-gray-600">
+          Loading students...
         </div>
       ) : filteredStudents.length === 0 ? (
-        <div className="container mx-auto px-4 py-16 text-center">
-          <div className="text-2xl text-gray-600">
-            {searchQuery ? 'No students found matching your search.' : 'No students yet.'}
-          </div>
+        <div className="container mx-auto px-4 py-16 text-center text-gray-600">
+          {searchQuery ? 'No students found.' : 'No students yet.'}
         </div>
       ) : (
-        <>
-          <div className="container mx-auto px-4 py-12">
-            <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-green-600 to-sky-600 bg-clip-text text-transparent">
-              Our Journey Together
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-16">
-              {filteredStudents.map((student) => (
-                <div
-                  key={`cover-${student.id}`}
-                  className="aspect-square overflow-hidden rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300"
-                >
+        <main className="container mx-auto px-4 py-12">
+          <h2 className="text-2xl font-bold text-gray-800 text-center mb-8">
+            Class of 221 — CSE
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredStudents.map((student) => (
+              <article
+                key={student.id}
+                className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <div className="p-6 flex flex-col items-center text-center">
                   <img
-                    src={student.cover_photo_url}
-                    alt={`${student.name} cover`}
-                    className="w-full h-full object-cover"
+                    src={student.profile_photo_url || student.profile_photo_base64}
+                    alt={student.name}
+                    className="w-28 h-28 rounded-full object-cover border-4 border-emerald-100 mb-3"
                   />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="container mx-auto px-4 py-12">
-            <h2 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-green-600 to-sky-600 bg-clip-text text-transparent">
-              Class of 221 - CSE
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {filteredStudents.map((student) => (
-                <div
-                  key={student.id}
-                  className="group bg-white rounded-2xl shadow-xl overflow-hidden transform hover:scale-105 transition-all duration-300 hover:shadow-2xl"
-                >
-                  <div className="relative h-32 bg-gradient-to-r from-green-500 via-emerald-400 to-sky-400 overflow-hidden">
-                    <img
-                      src={student.cover_photo_url || student.cover_photo_base64}
-                      alt="Cover"
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="relative px-6 pb-6">
-                    <div className="absolute -top-16 left-1/2 transform -translate-x-1/2">
-                      <div className="w-32 h-32 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white ring-2 ring-green-200 group-hover:ring-4 group-hover:ring-sky-300 transition-all">
-                        <img
-                          src={student.profile_photo_url || student.profile_photo_base64}
-                          alt={student.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                      </div>
-                    </div>
-                    <div className="pt-20 text-center">
-                      <h3 className="text-xl font-bold text-gray-800 mb-1 line-clamp-2">
-                        {student.name}
-                      </h3>
-                      <p className="text-green-600 font-semibold mb-2 text-sm">
-                        {student.student_id}
-                      </p>
-                      {student.phone_number && (
-                        <p className="text-xs text-gray-500 mb-3">
-                          {student.phone_number}
-                        </p>
-                      )}
-                      <div className="flex justify-center space-x-4 pt-2 border-t border-gray-100">
-                        {student.facebook_url && (
-                          <a
-                            href={student.facebook_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700 hover:scale-110 transition-all mt-2"
-                          >
-                            <Facebook size={24} />
-                          </a>
-                        )}
-                        {student.twitter_url && (
-                          <a
-                            href={student.twitter_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sky-600 hover:text-sky-700 hover:scale-110 transition-all mt-2"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M4 4l11.733 16h4.267l-11.733 -16z" />
-                              <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772" />
-                            </svg>
-                          </a>
-                        )}
-                        {student.linkedin_url && (
-                          <a
-                            href={student.linkedin_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-700 hover:text-blue-800 hover:scale-110 transition-all mt-2"
-                          >
-                            <Linkedin size={24} />
-                          </a>
-                        )}
-                        {student.email && (
-                          <a
-                            href={`mailto:${student.email}`}
-                            className="text-gray-600 hover:text-gray-700 hover:scale-110 transition-all mt-2"
-                          >
-                            <Mail size={24} />
-                          </a>
-                        )}
-                      </div>
-                    </div>
+                  <h3 className="font-bold text-gray-800 text-lg leading-tight mb-1">
+                    {student.name}
+                  </h3>
+                  <p className="text-emerald-600 font-semibold text-sm mb-4">
+                    {student.student_id}
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {student.phone_number && (
+                      <a
+                        href={`tel:${student.phone_number.replace(/\D/g, '')}`}
+                        className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
+                        title="Call"
+                      >
+                        <Phone size={20} />
+                      </a>
+                    )}
+                    {student.email && (
+                      <a
+                        href={`mailto:${student.email}`}
+                        className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
+                        title="Email"
+                      >
+                        <Mail size={20} />
+                      </a>
+                    )}
+                    {student.facebook_url && (
+                      <a
+                        href={student.facebook_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-lg bg-gray-100 text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Facebook"
+                      >
+                        <Facebook size={20} />
+                      </a>
+                    )}
+                    {student.twitter_url && (
+                      <a
+                        href={student.twitter_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
+                        title="X"
+                      >
+                        <XIcon />
+                      </a>
+                    )}
+                    {student.linkedin_url && (
+                      <a
+                        href={student.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-lg bg-gray-100 text-blue-700 hover:bg-blue-50 transition-colors"
+                        title="LinkedIn"
+                      >
+                        <Linkedin size={20} />
+                      </a>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
+              </article>
+            ))}
           </div>
-        </>
+        </main>
       )}
 
-      <footer className="bg-gradient-to-r from-green-600 via-emerald-500 to-sky-500 text-white py-8 mt-16">
+      <footer className="bg-gray-800 text-white py-8 mt-12">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-lg font-semibold">
-            Forever in our hearts, the memories we made together
-          </p>
-          <p className="text-emerald-100 mt-2">
-            221 CSE - Return 0; Graduation Day
-          </p>
+          <p className="font-medium">Forever in our hearts — the memories we made together</p>
+          <p className="text-gray-400 mt-1">221 CSE · Return 0; Graduation Day</p>
         </div>
       </footer>
     </div>
