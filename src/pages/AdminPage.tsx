@@ -1,17 +1,52 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
-import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, LogOut } from 'lucide-react';
+
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL?.trim(); // Optional: only this email can access admin
 
 export default function AdminPage() {
   const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
   const [approvedStudents, setApprovedStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const ADMIN_PASSWORD = 'GUB221CSE2024';
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !isSupabaseConfigured) {
+      setAuthChecking(false);
+      return;
+    }
+    const checkSession = async () => {
+      const { data: { session } } = await client.auth.getSession();
+      if (session?.user) {
+        const allowed = !ADMIN_EMAIL || session.user.email === ADMIN_EMAIL;
+        if (allowed) {
+          setAuthenticated(true);
+          setUserEmail(session.user.email ?? null);
+        }
+      }
+      setAuthChecking(false);
+    };
+    checkSession();
+
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        setAuthenticated(false);
+        setUserEmail(null);
+        return;
+      }
+      const allowed = !ADMIN_EMAIL || session.user.email === ADMIN_EMAIL;
+      setAuthenticated(allowed);
+      setUserEmail(allowed ? (session.user.email ?? null) : null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (authenticated) {
@@ -88,17 +123,38 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
+    if (!supabase) return;
+    setMessage(null);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (ADMIN_EMAIL && data.user?.email !== ADMIN_EMAIL) {
+        await supabase.auth.signOut();
+        setMessage({ type: 'error', text: 'This account is not authorized for admin access.' });
+        return;
+      }
       setAuthenticated(true);
+      setUserEmail(data.user?.email ?? null);
+      setEmail('');
       setPassword('');
       setMessage({ type: 'success', text: 'Logged in successfully' });
       setTimeout(() => setMessage(null), 2000);
-    } else {
-      setMessage({ type: 'error', text: 'Invalid password' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Login failed';
+      setMessage({ type: 'error', text: msg.includes('Invalid login') ? 'Invalid email or password.' : msg });
       setPassword('');
     }
+  };
+
+  const handleSignOut = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setAuthenticated(false);
+    setUserEmail(null);
+    setMessage({ type: 'success', text: 'Signed out' });
+    setTimeout(() => setMessage(null), 2000);
   };
 
   if (!isSupabaseConfigured) {
@@ -113,12 +169,23 @@ export default function AdminPage() {
     );
   }
 
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md text-center">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
+          <p className="text-gray-600">Checking login...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
-          <p className="text-gray-600 mb-6">Manage student submissions</p>
+          <p className="text-gray-600 mb-6">Sign in with your Supabase account</p>
 
           {message && (
             <div
@@ -135,21 +202,37 @@ export default function AdminPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Admin Password
+                Email
+              </label>
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Password
               </label>
               <input
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                required
               />
             </div>
             <button
               type="submit"
               className="w-full bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white font-bold py-3 rounded-lg transition-all"
             >
-              Login
+              Sign in
             </button>
           </form>
 
@@ -169,17 +252,29 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-8 flex flex-wrap justify-between items-center gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-800">Admin Panel</h1>
-            <p className="text-gray-600">Manage student submissions</p>
+            <p className="text-gray-600">
+              {userEmail ? `Signed in as ${userEmail}` : 'Manage student submissions'}
+            </p>
           </div>
-          <a
-            href="/"
-            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-          >
-            Back to Directory
-          </a>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-semibold transition-colors"
+            >
+              <LogOut size={18} />
+              Sign out
+            </button>
+            <a
+              href="/"
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors inline-block"
+            >
+              Back to Directory
+            </a>
+          </div>
         </div>
 
         {message && (
