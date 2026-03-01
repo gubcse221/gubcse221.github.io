@@ -68,6 +68,22 @@ function App() {
         }}
       >
         <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute top-4 right-4 z-20 flex flex-wrap gap-2">
+          <a
+            href="/upload"
+            className="inline-flex items-center gap-1.5 bg-white text-green-700 font-semibold text-sm px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors shadow-lg"
+          >
+            <Plus size={14} />
+            Submit Information
+          </a>
+          <a
+            href="/admin"
+            className="inline-flex items-center gap-1.5 bg-white/90 text-sky-700 font-semibold text-sm px-3 py-1.5 rounded-lg hover:bg-sky-50 transition-colors shadow-lg"
+          >
+            <Lock size={14} />
+            Admin
+          </a>
+        </div>
         <div className="relative z-10 container mx-auto px-4 py-12 text-white">
           <div className="flex flex-wrap items-center gap-4 mb-4">
             <img
@@ -105,23 +121,6 @@ function App() {
                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/95 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400"
               />
             </div>
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a
-              href="/upload"
-              className="inline-flex items-center gap-2 bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-50 transition-colors"
-            >
-              <Plus size={18} />
-              Submit Information
-            </a>
-            <a
-              href="/admin"
-              className="inline-flex items-center gap-2 bg-white/90 text-sky-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-sky-50 transition-colors"
-            >
-              <Lock size={18} />
-              Admin
-            </a>
           </div>
         </div>
       </header>
@@ -236,3 +235,6 @@ function App() {
 }
 
 export default App;
+
+
+
