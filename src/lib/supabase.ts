@@ -1,13 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase: SupabaseClient | null = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  : null;
 
 export interface Student {
   id: string;
@@ -15,6 +15,9 @@ export interface Student {
   name: string;
   profile_photo_url: string;
   cover_photo_url: string;
+  profile_photo_base64?: string;
+  cover_photo_base64?: string;
+  phone_number?: string;
   facebook_url?: string;
   twitter_url?: string;
   linkedin_url?: string;

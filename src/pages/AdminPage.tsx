@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase, Student } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
 import { CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminPage() {
@@ -20,6 +20,10 @@ export default function AdminPage() {
   }, [authenticated]);
 
   const fetchStudents = async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     try {
       const { data: pending } = await supabase
         .from('students')
@@ -43,6 +47,7 @@ export default function AdminPage() {
   };
 
   const handleApprove = async (student: Student) => {
+    if (!supabase) return;
     try {
       const { error } = await supabase
         .from('students')
@@ -66,6 +71,7 @@ export default function AdminPage() {
   };
 
   const handleReject = async (studentId: string) => {
+    if (!supabase) return;
     try {
       const { error } = await supabase.from('students').delete().eq('id', studentId);
 
@@ -93,6 +99,18 @@ export default function AdminPage() {
       setPassword('');
     }
   };
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md text-center">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
+          <p className="text-amber-700 mb-6">Database not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</p>
+          <a href="/" className="text-green-600 hover:text-green-700 font-semibold">Back to Directory</a>
+        </div>
+      </div>
+    );
+  }
 
   if (!authenticated) {
     return (

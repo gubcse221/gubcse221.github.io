@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { compressImage, formatFileSize, getBase64Size } from '../lib/imageUtils';
 import { Upload, X, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -142,6 +142,11 @@ export default function UploadPage() {
       return;
     }
 
+    if (!supabase) {
+      setMessage({ type: 'error', text: 'Database not configured.' });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -241,6 +246,12 @@ export default function UploadPage() {
                 Share your details and photos to join the memorial directory
               </p>
             </div>
+
+            {!isSupabaseConfigured && (
+              <div className="mx-6 mt-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                Database not configured. Submissions are disabled.
+              </div>
+            )}
 
             {message && (
               <div
@@ -590,7 +601,7 @@ export default function UploadPage() {
               <div className="flex gap-4 pt-6">
                 <button
                   type="submit"
-                  disabled={loading || cropMode !== null}
+                  disabled={loading || cropMode !== null || !isSupabaseConfigured}
                   className="flex-1 bg-gradient-to-r from-green-600 via-emerald-500 to-sky-500 hover:from-green-700 hover:via-emerald-600 hover:to-sky-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105"
                 >
                   {loading ? 'Submitting...' : 'Submit Information'}

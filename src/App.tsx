@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase, Student } from './lib/supabase';
+import { supabase, isSupabaseConfigured, Student } from './lib/supabase';
 import { Search, Facebook, Linkedin, Mail, Plus, Lock } from 'lucide-react';
 
 function App() {
@@ -27,6 +27,10 @@ function App() {
   }, [searchQuery, students]);
 
   const fetchStudents = async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('students')
@@ -101,6 +105,13 @@ function App() {
         </div>
       </div>
 
+      {!isSupabaseConfigured && (
+        <div className="container mx-auto px-4 py-4 text-center">
+          <div className="inline-block bg-amber-50 text-amber-800 px-4 py-2 rounded-lg text-sm border border-amber-200">
+            Database not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to load data.
+          </div>
+        </div>
+      )}
       {loading ? (
         <div className="container mx-auto px-4 py-16 text-center">
           <div className="text-2xl text-gray-600">Loading students...</div>
