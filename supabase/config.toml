@@ -1,7 +1,6 @@
 # Supabase project config. Run `supabase link` to connect to your remote project.
-
-[project]
-project_id = ""
+# project_id is set when you run `supabase link`.
+project_id = "gubcse221"
 
 [api]
 enabled = true
