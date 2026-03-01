@@ -52,11 +52,8 @@ function App() {
     }
   };
 
-  const heroCover =
-    students.length > 0
-      ? students[0].cover_photo_url || students[0].cover_photo_base64
-      : null;
-  const heroBg = heroCover ? `url(${heroCover})` : 'url(/assets/cover.JPG)';
+
+  const heroBg = 'url(/assets/cover.JPG)';
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -142,84 +139,105 @@ function App() {
           {searchQuery ? 'No students found.' : 'No students yet.'}
         </div>
       ) : (
-        <main className="container mx-auto px-4 py-12">
-          <h2 className="text-2xl font-bold text-gray-800 text-center mb-8">
-            Class of 221 — CSE
+        <main className="container mx-auto px-3 sm:px-4 py-8 sm:py-12">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 text-center mb-6 sm:mb-8">
+            Batch of 221 — CSE Directory
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredStudents.map((student) => (
-              <article
-                key={student.id}
-                className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-              >
-                <div className="p-6 flex flex-col items-center text-center">
-                  <img
-                    src={student.profile_photo_url || student.profile_photo_base64}
-                    alt={student.name}
-                    className="w-28 h-28 rounded-full object-cover border-4 border-emerald-100 mb-3"
-                  />
-                  <h3 className="font-bold text-gray-800 text-lg leading-tight mb-1">
-                    {student.name}
-                  </h3>
-                  <p className="text-emerald-600 font-semibold text-sm mb-4">
-                    {student.student_id}
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {student.phone_number && (
-                      <a
-                        href={`tel:${student.phone_number.replace(/\D/g, '')}`}
-                        className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
-                        title="Call"
-                      >
-                        <Phone size={20} />
-                      </a>
-                    )}
-                    {student.email && (
-                      <a
-                        href={`mailto:${student.email}`}
-                        className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-700 transition-colors"
-                        title="Email"
-                      >
-                        <Mail size={20} />
-                      </a>
-                    )}
-                    {student.facebook_url && (
-                      <a
-                        href={student.facebook_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-lg bg-gray-100 text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Facebook"
-                      >
-                        <Facebook size={20} />
-                      </a>
-                    )}
-                    {student.twitter_url && (
-                      <a
-                        href={student.twitter_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-                        title="X"
-                      >
-                        <XIcon />
-                      </a>
-                    )}
-                    {student.linkedin_url && (
-                      <a
-                        href={student.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded-lg bg-gray-100 text-blue-700 hover:bg-blue-50 transition-colors"
-                        title="LinkedIn"
-                      >
-                        <Linkedin size={20} />
-                      </a>
-                    )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            {filteredStudents.map((student) => {
+              const cover =
+                student.cover_photo_url ||
+                student.cover_photo_base64 ||
+                '/assets/cover.JPG';
+
+              return (
+                <article
+                  key={student.id}
+                  className="group relative bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 min-w-0"
+                >
+                  {/* Cover banner with gradient overlay */}
+                  <div className="relative h-28 sm:h-36 bg-cover bg-center" style={{ backgroundImage: `url(${cover})` }}>
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70" />
                   </div>
-                </div>
-              </article>
-            ))}
+
+                  {/* Profile photo - overlapping cover and content, larger circle */}
+                  <div className="relative flex justify-center -mt-16 sm:-mt-20">
+                    <div className="rounded-full p-2 sm:p-2.5 bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg">
+                      <img
+                        src={student.profile_photo_url || student.profile_photo_base64}
+                        alt={student.name}
+                        className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover bg-gray-100 ring-2 ring-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Content section */}
+                  <div className="px-4 sm:px-5 pb-4 sm:pb-6 pt-1 sm:pt-2 text-center">
+                    <h3 className="font-bold text-gray-800 text-base sm:text-lg leading-tight mb-0.5 tracking-tight break-words">
+                      {student.name}
+                    </h3>
+                    <p className="text-emerald-600 font-medium text-sm mb-4 sm:mb-5">
+                      {student.student_id}
+                    </p>
+
+                    {/* Social links - refined pill style */}
+                    <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
+                      {student.phone_number && (
+                        <a
+                          href={`tel:${student.phone_number.replace(/\D/g, '')}`}
+                          className="p-2 sm:p-2.5 rounded-xl bg-gray-50 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                          title="Call"
+                        >
+                          <Phone size={18} />
+                        </a>
+                      )}
+                      {student.email && (
+                        <a
+                          href={`mailto:${student.email}`}
+                          className="p-2 sm:p-2.5 rounded-xl bg-gray-50 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                          title="Email"
+                        >
+                          <Mail size={18} />
+                        </a>
+                      )}
+                      {student.facebook_url && (
+                        <a
+                          href={student.facebook_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 sm:p-2.5 rounded-xl bg-gray-50 text-blue-600 hover:bg-blue-50 transition-colors"
+                          title="Facebook"
+                        >
+                          <Facebook size={18} />
+                        </a>
+                      )}
+                      {student.twitter_url && (
+                        <a
+                          href={student.twitter_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 sm:p-2.5 rounded-xl bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
+                          title="X"
+                        >
+                          <XIcon />
+                        </a>
+                      )}
+                      {student.linkedin_url && (
+                        <a
+                          href={student.linkedin_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 sm:p-2.5 rounded-xl bg-gray-50 text-blue-700 hover:bg-blue-50 transition-colors"
+                          title="LinkedIn"
+                        >
+                          <Linkedin size={18} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </main>
       )}
