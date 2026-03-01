@@ -1,7 +1,142 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { compressImage, formatFileSize, getBase64Size } from '../lib/imageUtils';
-import { Upload, X, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, AlertCircle, CheckCircle } from 'lucide-react';
+
+const HANDLE_SIZE = 28; // Touch-friendly resize handle (min ~44px for a11y is ideal; 28px is usable)
+const MIN_CROP = 60;
+
+function getClientCoords(e: MouseEvent | TouchEvent): { x: number; y: number } {
+  if ('touches' in e && e.touches.length > 0) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  const me = e as MouseEvent;
+  return { x: me.clientX, y: me.clientY };
+}
+
+/**
+ * Draggable and resizable crop overlay. Works with mouse and touch (desktop + mobile).
+ */
+function VisualCropper({
+  src,
+  crop,
+  setCrop,
+  aspect,
+  containerSize,
+}: {
+  src: string;
+  crop: { x: number; y: number; width: number; height: number };
+  setCrop: React.Dispatch<React.SetStateAction<{ x: number; y: number; width: number; height: number }>>;
+  aspect?: number;
+  containerSize: { width: number; height: number };
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startRef = useRef<{ type: 'move' | 'resize'; x: number; y: number } | null>(null);
+  const cropRef = useRef(crop);
+  cropRef.current = crop;
+
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(v, max));
+
+  const onPointerDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent, type: 'move' | 'resize') => {
+      e.preventDefault();
+      const coords = getClientCoords(e.nativeEvent as MouseEvent | TouchEvent);
+      startRef.current = { type, x: coords.x, y: coords.y };
+      const onMove = (ev: MouseEvent | TouchEvent) => {
+        ev.preventDefault();
+        if (!startRef.current) return;
+        const { x, y } = getClientCoords(ev);
+        const dx = x - startRef.current.x;
+        const dy = y - startRef.current.y;
+        const cur = cropRef.current;
+
+        if (startRef.current.type === 'move') {
+          setCrop((prev: { x: number; y: number; width: number; height: number }) => ({
+            ...prev,
+            x: clamp(prev.x + dx, 0, containerSize.width - prev.width),
+            y: clamp(prev.y + dy, 0, containerSize.height - prev.height),
+          }));
+        } else {
+          let newWidth = clamp(cur.width + dx, MIN_CROP, containerSize.width - cur.x);
+          let newHeight = clamp(cur.height + dy, MIN_CROP, containerSize.height - cur.y);
+          if (aspect) {
+            if (newWidth / newHeight > aspect) newWidth = newHeight * aspect;
+            else newHeight = newWidth / aspect;
+          }
+          setCrop((prev: { x: number; y: number; width: number; height: number }) => ({ ...prev, width: newWidth, height: newHeight }));
+        }
+        startRef.current = { ...startRef.current, x, y };
+      };
+      const onMoveTouch = (ev: TouchEvent) => { ev.preventDefault(); onMove(ev); };
+      const touchOpts = { passive: false } as { passive: boolean };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove as (e: MouseEvent) => void);
+        window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('touchmove', onMoveTouch);
+        window.removeEventListener('touchend', onUp);
+        startRef.current = null;
+      };
+      window.addEventListener('mousemove', onMove as (e: MouseEvent) => void);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('touchmove', onMoveTouch, touchOpts);
+      window.addEventListener('touchend', onUp);
+    },
+    [containerSize, aspect, setCrop]
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative bg-gray-100 mx-auto touch-none select-none"
+      style={{
+        width: containerSize.width,
+        height: containerSize.height,
+        maxWidth: '100%',
+        marginTop: 12,
+        marginBottom: 12,
+        overflow: 'hidden',
+      }}
+    >
+      <img
+        src={src}
+        alt="Crop"
+        className="block pointer-events-none"
+        style={{ width: containerSize.width, height: containerSize.height }}
+        draggable={false}
+      />
+      <div
+        className="absolute border-2 border-green-600 bg-green-600/10 z-[2] touch-none cursor-move"
+        style={{
+          left: crop.x,
+          top: crop.y,
+          width: crop.width,
+          height: crop.height,
+          boxSizing: 'border-box',
+        }}
+        onMouseDown={(e) => onPointerDown(e, 'move')}
+        onTouchStart={(e) => onPointerDown(e, 'move')}
+        title="Drag to move"
+      >
+        <div
+          className="absolute bg-white border-2 border-green-600 rounded-lg cursor-nwse-resize z-[3] flex items-center justify-center touch-none active:scale-95"
+          style={{
+            right: -HANDLE_SIZE / 2,
+            bottom: -HANDLE_SIZE / 2,
+            width: HANDLE_SIZE,
+            height: HANDLE_SIZE,
+            minWidth: HANDLE_SIZE,
+            minHeight: HANDLE_SIZE,
+          }}
+          onMouseDown={(e) => { e.stopPropagation(); onPointerDown(e, 'resize'); }}
+          onTouchStart={(e) => { e.stopPropagation(); onPointerDown(e, 'resize'); }}
+          title="Drag to resize"
+        >
+          <span className="block w-3 h-3 bg-green-600 rounded-sm" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function UploadPage() {
   const [formData, setFormData] = useState({
@@ -16,17 +151,42 @@ export default function UploadPage() {
 
   const [profilePhoto, setProfilePhoto] = useState<string>('');
   const [coverPhoto, setCoverPhoto] = useState<string>('');
-  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
-  const [coverPhotoFile, setCoverPhotoFile] = useState<File | null>(null);
 
   const [cropMode, setCropMode] = useState<'profile' | 'cover' | null>(null);
-  const [cropData, setCropData] = useState({ x: 0, y: 0, width: 200, height: 200 });
+
+  // Responsive crop container sizes (desktop + mobile friendly)
+  const getProfileSize = useCallback(() => {
+    const w = typeof window !== 'undefined' ? Math.min(320, window.innerWidth - 48) : 320;
+    return { width: w, height: w };
+  }, []);
+  const getCoverSize = useCallback(() => {
+    const w = typeof window !== 'undefined' ? Math.min(480, window.innerWidth - 48) : 480;
+    return { width: w, height: Math.round(w * (9 / 16)) };
+  }, []);
+
+  const [profileContainer, setProfileContainer] = useState(() => getProfileSize());
+  const [coverContainer, setCoverContainer] = useState(() => getCoverSize());
+
+  useEffect(() => {
+    const update = () => {
+      setProfileContainer(getProfileSize());
+      setCoverContainer(getCoverSize());
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [getProfileSize, getCoverSize]);
+
+  const [cropData, setCropData] = useState<{ x: number; y: number; width: number; height: number }>({
+    x: 60,
+    y: 60,
+    width: 200,
+    height: 200,
+  });
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,26 +211,40 @@ export default function UploadPage() {
     }
 
     try {
-      const compressed = await compressImage(file, 600, 600, 0.85);
+      // Higher max size on desktop for better crop quality; smaller on mobile to keep base64 small
+      const maxSize = typeof window !== 'undefined' && window.innerWidth >= 768 ? 1000 : 600;
+      const compressed = await compressImage(file, maxSize, maxSize, 0.85);
 
       if (type === 'profile') {
         setProfilePhoto(compressed);
-        setProfilePhotoFile(file);
+        const size = getProfileSize();
+        const margin = 40;
+        const side = Math.max(MIN_CROP, size.width - margin * 2);
+        setCropData({
+          x: (size.width - side) / 2,
+          y: (size.height - side) / 2,
+          width: side,
+          height: side,
+        });
         setCropMode('profile');
       } else {
         setCoverPhoto(compressed);
-        setCoverPhotoFile(file);
+        const size = getCoverSize();
+        const margin = 24;
+        const w = Math.max(MIN_CROP, size.width - margin * 2);
+        const h = Math.round(w * (9 / 16));
+        setCropData({
+          x: (size.width - w) / 2,
+          y: Math.max(0, (size.height - h) / 2),
+          width: w,
+          height: Math.min(h, size.height),
+        });
         setCropMode('cover');
       }
-
       setMessage(null);
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to process image' });
     }
-  };
-
-  const handleCropChange = (field: keyof typeof cropData, value: number) => {
-    setCropData((prev) => ({ ...prev, [field]: value }));
   };
 
   const applyCrop = async () => {
@@ -80,25 +254,34 @@ export default function UploadPage() {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const img = new Image();
+      // Set canvas to crop rect size
+      canvas.width = cropData.width;
+      canvas.height = cropData.height;
+
+      const img = new window.Image();
       const currentPhoto = cropMode === 'profile' ? profilePhoto : coverPhoto;
 
+      // Image source must be the original, but render onto our displayed size
+      // so that cropping coordinates match the preview/visual crop canvas
       img.onload = () => {
+        const previewSize = cropMode === 'profile' ? profileContainer : coverContainer;
+        const scaleX = img.naturalWidth / previewSize.width;
+        const scaleY = img.naturalHeight / previewSize.height;
+
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        canvas.width = cropData.width;
-        canvas.height = cropData.height;
+        // Draw only the selected area clipped/scaled from original image
         ctx.drawImage(
           img,
-          cropData.x,
-          cropData.y,
-          cropData.width,
-          cropData.height,
+          cropData.x * scaleX,
+          cropData.y * scaleY,
+          cropData.width * scaleX,
+          cropData.height * scaleY,
           0,
           0,
-          cropData.width,
-          cropData.height
+          canvas.width,
+          canvas.height
         );
 
         const croppedBase64 = canvas.toDataURL('image/jpeg', 0.85);
@@ -114,7 +297,7 @@ export default function UploadPage() {
       };
 
       img.src = currentPhoto;
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to crop image' });
     }
   };
@@ -205,10 +388,10 @@ export default function UploadPage() {
       setTimeout(() => {
         setMessage(null);
       }, 3000);
-    } catch (error) {
+    } catch (err) {
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to submit information',
+        text: err instanceof Error ? err.message : 'Failed to submit information',
       });
     } finally {
       setLoading(false);
@@ -385,59 +568,15 @@ export default function UploadPage() {
 
                 {cropMode === 'profile' && profilePhoto ? (
                   <div className="space-y-4 bg-gray-50 p-6 rounded-lg">
-                    <p className="text-sm text-gray-600 font-medium">Adjust your crop area</p>
+                    <p className="text-sm text-gray-600 font-medium">Adjust your crop area visually</p>
                     <canvas ref={canvasRef} className="hidden" />
-                    <div className="bg-white p-4 rounded-lg">
-                      <img src={profilePhoto} alt="Preview" className="w-full max-h-96 object-contain" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm text-gray-600">Start X: {cropData.x}</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="600"
-                          value={cropData.x}
-                          onChange={(e) => handleCropChange('x', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Start Y: {cropData.y}</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="600"
-                          value={cropData.y}
-                          onChange={(e) => handleCropChange('y', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Width: {cropData.width}</label>
-                        <input
-                          type="range"
-                          min="50"
-                          max="600"
-                          value={cropData.width}
-                          onChange={(e) => handleCropChange('width', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Height: {cropData.height}</label>
-                        <input
-                          type="range"
-                          min="50"
-                          max="600"
-                          value={cropData.height}
-                          onChange={(e) => handleCropChange('height', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-
+                    <VisualCropper
+                      src={profilePhoto}
+                      crop={cropData}
+                      setCrop={setCropData}
+                      aspect={1}
+                      containerSize={profileContainer}
+                    />
                     <div className="flex gap-3">
                       <button
                         type="button"
@@ -494,59 +633,15 @@ export default function UploadPage() {
 
                 {cropMode === 'cover' && coverPhoto ? (
                   <div className="space-y-4 bg-gray-50 p-6 rounded-lg">
-                    <p className="text-sm text-gray-600 font-medium">Adjust your crop area</p>
+                    <p className="text-sm text-gray-600 font-medium">Adjust your crop area visually</p>
                     <canvas ref={canvasRef} className="hidden" />
-                    <div className="bg-white p-4 rounded-lg">
-                      <img src={coverPhoto} alt="Preview" className="w-full max-h-96 object-contain" />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm text-gray-600">Start X: {cropData.x}</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="600"
-                          value={cropData.x}
-                          onChange={(e) => handleCropChange('x', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Start Y: {cropData.y}</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="600"
-                          value={cropData.y}
-                          onChange={(e) => handleCropChange('y', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Width: {cropData.width}</label>
-                        <input
-                          type="range"
-                          min="50"
-                          max="600"
-                          value={cropData.width}
-                          onChange={(e) => handleCropChange('width', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Height: {cropData.height}</label>
-                        <input
-                          type="range"
-                          min="50"
-                          max="600"
-                          value={cropData.height}
-                          onChange={(e) => handleCropChange('height', Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-
+                    <VisualCropper
+                      src={coverPhoto}
+                      crop={cropData}
+                      setCrop={setCropData}
+                      aspect={16 / 9}
+                      containerSize={coverContainer}
+                    />
                     <div className="flex gap-3">
                       <button
                         type="button"
