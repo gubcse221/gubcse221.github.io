@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GUB CSE 221 – Student Directory</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+      color: #fff;
+      text-align: center;
+      padding: 2.5rem 1rem 2rem;
+    }
+
+    header h1 { font-size: 2rem; letter-spacing: 0.03em; }
+    header p  { margin-top: 0.4rem; opacity: 0.85; font-size: 1rem; }
+
+    .search-bar {
+      display: flex;
+      justify-content: center;
+      padding: 1.5rem 1rem 0.5rem;
+    }
+
+    .search-bar input {
+      width: 100%;
+      max-width: 480px;
+      padding: 0.65rem 1rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-bar input:focus { border-color: #2b6cb0; }
+
+    #count {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #718096;
+      padding: 0.25rem 0 0.75rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1.25rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0.5rem 1.5rem 3rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 1.5rem 1rem 1.25rem;
+      text-align: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    }
+
+    .avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #bee3f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #2b6cb0;
+      margin: 0 auto 0.85rem;
+      user-select: none;
+    }
+
+    .card h3 { font-size: 1rem; font-weight: 600; }
+
+    .card .id {
+      font-size: 0.8rem;
+      color: #718096;
+      margin-top: 0.25rem;
+    }
+
+    .card a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: #2b6cb0;
+      text-decoration: none;
+      border: 1px solid #2b6cb0;
+      border-radius: 999px;
+      padding: 0.25rem 0.75rem;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .card a:hover { background: #2b6cb0; color: #fff; }
+
+    .hidden { display: none; }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #a0aec0;
+      padding: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>GUB CSE 221 – Student Directory</h1>
+  <p>Green University of Bangladesh &nbsp;·&nbsp; CSE Department &nbsp;·&nbsp; Section 221</p>
+</header>
+
+<div class="search-bar">
+  <input id="search" type="search" placeholder="Search by name or ID…" aria-label="Search students" />
+</div>
+<p id="count"></p>
+
+<div class="grid" id="grid"></div>
+
+<footer>GUB CSE 221 &copy; 2026</footer>
+
+<script>
+  const students = [
+    { name: "Ahmed Al Faruk",     id: "221-15-001", github: "ahmedalfaruk" },
+    { name: "Anika Sultana",      id: "221-15-002", github: "anikasultana" },
+    { name: "Asif Hossain",       id: "221-15-003", github: "asifhossain" },
+    { name: "Bristy Akter",       id: "221-15-004", github: "bristyakter" },
+    { name: "Fahim Shahriar",     id: "221-15-005", github: "fahimshahriar" },
+    { name: "Farhan Kabir",       id: "221-15-006", github: "farhankabir" },
+    { name: "Israt Jahan",        id: "221-15-007", github: "isratjahan" },
+    { name: "Jakir Hossain",      id: "221-15-008", github: "jakirhossain" },
+    { name: "Lamia Akter",        id: "221-15-009", github: "lamiaakter" },
+    { name: "Mahbub Alam",        id: "221-15-010", github: "mahbubalam" },
+    { name: "Md. Rakib Hasan",    id: "221-15-011", github: "rakibhasan" },
+    { name: "Nadia Islam",        id: "221-15-012", github: "nadiaislam" },
+    { name: "Nasim Ahmed",        id: "221-15-013", github: "nasimahmed" },
+    { name: "Rafia Tasnim",       id: "221-15-014", github: "rafiatasnim" },
+    { name: "Rifat Hasan",        id: "221-15-015", github: "rifathasan" },
+    { name: "Sabbir Rahman",      id: "221-15-016", github: "sabbirrahman" },
+    { name: "Sakib Al Hasan",     id: "221-15-017", github: "sakibalhasan" },
+    { name: "Salma Khatun",       id: "221-15-018", github: "salmakhatun" },
+    { name: "Shahriar Kabir",     id: "221-15-019", github: "shahriarkabir" },
+    { name: "Sumaiya Akter",      id: "221-15-020", github: "sumaiyaakter" },
+    { name: "Tahmid Hossain",     id: "221-15-021", github: "tahmid221" },
+    { name: "Tanvir Ahmed",       id: "221-15-022", github: "tanvirahmed" },
+    { name: "Trishna Dey",        id: "221-15-023", github: "trishnadey" },
+    { name: "Ummul Wara",         id: "221-15-024", github: "ummulwara" },
+    { name: "Yeamin Hossain",     id: "221-15-025", github: "yeaminhossain" },
+  ];
+
+  const grid  = document.getElementById("grid");
+  const count = document.getElementById("count");
+  const input = document.getElementById("search");
+
+  function initials(name) {
+    return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  }
+
+  function render(list) {
+    grid.innerHTML = list.map(s => `
+      <div class="card">
+        <div class="avatar">${initials(s.name)}</div>
+        <h3>${s.name}</h3>
+        <p class="id">${s.id}</p>
+        <a href="https://github.com/${s.github}" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    `).join("");
+    count.textContent = `Showing ${list.length} of ${students.length} students`;
+  }
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    render(q ? students.filter(s =>
+      s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
+    ) : students);
+  });
+
+  render(students);
+</script>
+</body>
+</html>
