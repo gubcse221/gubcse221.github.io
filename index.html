@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GUB CSE Batch 221 – Student Directory</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #006633 0%, #004d26 100%);
+      color: #fff;
+      text-align: center;
+      padding: 2rem 1rem 1.5rem;
+    }
+    header .logo-text {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    header p {
+      font-size: 1rem;
+      opacity: .85;
+      margin-top: .4rem;
+    }
+    header .badge {
+      display: inline-block;
+      margin-top: .8rem;
+      background: #ffcc00;
+      color: #1a1a1a;
+      font-weight: 600;
+      padding: .25rem .9rem;
+      border-radius: 999px;
+      font-size: .875rem;
+    }
+
+    /* ── Search bar ── */
+    .search-wrap {
+      max-width: 500px;
+      margin: 1.5rem auto;
+      padding: 0 1rem;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: .65rem 1rem;
+      border: 2px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .search-wrap input:focus { border-color: #006633; }
+
+    /* ── Grid ── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1rem 3rem;
+    }
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #2d3748;
+      border-left: 4px solid #006633;
+      padding-left: .6rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1.25rem;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem 1rem 1.25rem;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 18px rgba(0,0,0,.13);
+    }
+    .avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #006633;
+      color: #fff;
+      font-size: 1.6rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto .85rem;
+    }
+    .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: .3rem; }
+    .card .student-id {
+      font-size: .8rem;
+      color: #718096;
+      margin-bottom: .4rem;
+    }
+    .card .department {
+      display: inline-block;
+      background: #e6f4ec;
+      color: #006633;
+      font-size: .75rem;
+      font-weight: 600;
+      padding: .15rem .6rem;
+      border-radius: 999px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 1.2rem;
+      background: #2d3748;
+      color: #a0aec0;
+      font-size: .85rem;
+    }
+    footer a { color: #68d391; text-decoration: none; }
+
+    /* ── No-result message ── */
+    #no-result {
+      display: none;
+      text-align: center;
+      color: #718096;
+      padding: 2rem 0;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-text">🎓 Green University of Bangladesh</div>
+  <p>Department of Computer Science &amp; Engineering</p>
+  <span class="badge">Batch 221 – Student Directory</span>
+</header>
+
+<div class="search-wrap">
+  <input type="text" id="searchInput" placeholder="Search by name or student ID…" aria-label="Search students" />
+</div>
+
+<div class="container">
+  <p class="section-title">All Students</p>
+  <div class="grid" id="studentGrid">
+
+    <!-- ── Student cards ── -->
+    <!-- Add or remove cards below to update the directory. -->
+
+    <div class="card" data-name="Abdullah Al Mamun" data-id="220902001">
+      <div class="avatar">AM</div>
+      <h3>Abdullah Al Mamun</h3>
+      <div class="student-id">ID: 220902001</div>
+      <span class="department">CSE</span>
+    </div>
+
+    <div class="card" data-name="Fatema Tuz Zohora" data-id="220902002">
+      <div class="avatar">FZ</div>
+      <h3>Fatema Tuz Zohora</h3>
+      <div class="student-id">ID: 220902002</div>
+      <span class="department">CSE</span>
+    </div>
+
+    <div class="card" data-name="Md. Rakibul Hasan" data-id="220902003">
+      <div class="avatar">RH</div>
+      <h3>Md. Rakibul Hasan</h3>
+      <div class="student-id">ID: 220902003</div>
+      <span class="department">CSE</span>
+    </div>
+
+    <div class="card" data-name="Nusrat Jahan" data-id="220902004">
+      <div class="avatar">NJ</div>
+      <h3>Nusrat Jahan</h3>
+      <div class="student-id">ID: 220902004</div>
+      <span class="department">CSE</span>
+    </div>
+
+    <div class="card" data-name="Tanvir Ahmed" data-id="220902005">
+      <div class="avatar">TA</div>
+      <h3>Tanvir Ahmed</h3>
+      <div class="student-id">ID: 220902005</div>
+      <span class="department">CSE</span>
+    </div>
+
+    <div class="card" data-name="Sharmin Akter" data-id="220902006">
+      <div class="avatar">SA</div>
+      <h3>Sharmin Akter</h3>
+      <div class="student-id">ID: 220902006</div>
+      <span class="department">CSE</span>
+    </div>
+
+    <div class="card" data-name="Mahmudul Hasan" data-id="220902007">
+      <div class="avatar">MH</div>
+      <h3>Mahmudul Hasan</h3>
+      <div class="student-id">ID: 220902007</div>
+      <span class="department">CSE</span>
+    </div>
+
+    <div class="card" data-name="Rifat Hossain" data-id="220902008">
+      <div class="avatar">RI</div>
+      <h3>Rifat Hossain</h3>
+      <div class="student-id">ID: 220902008</div>
+      <span class="department">CSE</span>
+    </div>
+
+  </div>
+  <p id="no-result">No students match your search.</p>
+</div>
+
+<footer>
+  &copy; 2024 Green University of Bangladesh &nbsp;|&nbsp;
+  <a href="https://green.edu.bd" target="_blank" rel="noopener">green.edu.bd</a>
+</footer>
+
+<script>
+  const searchInput = document.getElementById('searchInput');
+  const cards       = document.querySelectorAll('#studentGrid .card');
+  const noResult    = document.getElementById('no-result');
+
+  searchInput.addEventListener('input', function () {
+    const query   = this.value.trim().toLowerCase();
+    let   visible = 0;
+
+    cards.forEach(function (card) {
+      const name = card.dataset.name.toLowerCase();
+      const id   = card.dataset.id;
+      const show = !query || name.includes(query) || id.includes(query);
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    noResult.style.display = visible === 0 ? 'block' : 'none';
+  });
+</script>
+
+</body>
+</html>
