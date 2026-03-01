@@ -23,4 +23,5 @@ export interface Student {
   linkedin_url?: string;
   email?: string;
   created_at: string;
+  submitted_at?: string;
 }

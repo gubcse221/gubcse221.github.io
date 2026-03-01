@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
-import { CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
 
 export default function AdminPage() {
   const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
@@ -65,25 +65,26 @@ export default function AdminPage() {
       fetchStudents();
 
       setTimeout(() => setMessage(null), 2000);
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to approve student' });
     }
   };
 
-  const handleReject = async (studentId: string) => {
+  const handleDelete = async (student: Student) => {
     if (!supabase) return;
+    if (!window.confirm(`Delete ${student.name} (${student.student_id})? This cannot be undone.`)) return;
     try {
-      const { error } = await supabase.from('students').delete().eq('id', studentId);
+      const { error } = await supabase.from('students').delete().eq('id', student.id);
 
       if (error) throw error;
 
-      setMessage({ type: 'success', text: 'Student rejected and removed' });
+      setMessage({ type: 'success', text: `${student.name} removed` });
       setSelectedStudent(null);
       fetchStudents();
 
       setTimeout(() => setMessage(null), 2000);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to reject student' });
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to delete student' });
     }
   };
 
@@ -261,11 +262,19 @@ export default function AdminPage() {
                         alt={student.name}
                         className="w-12 h-12 rounded-lg object-cover"
                       />
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-800">{student.name}</h3>
                         <p className="text-sm text-gray-600">{student.student_id}</p>
                       </div>
-                      <CheckCircle className="text-emerald-600" size={20} />
+                      <CheckCircle className="text-emerald-600 shrink-0" size={20} />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(student); }}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -329,11 +338,11 @@ export default function AdminPage() {
                     Approve
                   </button>
                   <button
-                    onClick={() => handleReject(selectedStudent.id)}
+                    onClick={() => handleDelete(selectedStudent)}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    <XCircle size={18} />
-                    Reject
+                    <Trash2 size={18} />
+                    Delete
                   </button>
                 </div>
 
