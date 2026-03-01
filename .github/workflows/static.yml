@@ -1,4 +1,4 @@
-# Workflow for building a React app and deploying the dist folder to GitHub Pages
+# Workflow for building a React app and deploying the build folder to GitHub Pages
 name: Deploy React App to Pages
 
 on:
@@ -32,6 +32,10 @@ jobs:
         run: npm ci
       - name: Build React app
         run: npm run build
+      - name: List build directory contents
+        run: ls -lR ./dist/
+      - name: Show index.html contents (optional debug)
+        run: cat ./dist/index.html || echo "No index.html found"
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
