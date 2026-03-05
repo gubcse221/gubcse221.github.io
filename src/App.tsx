@@ -302,7 +302,7 @@ function App() {
         </div>
       ) : (
         <main className="container mx-auto px-3 sm:px-4 py-8 sm:py-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-emerald-100 text-center mb-6 sm:mb-8 drop-shadow-lg">
+          <h2 className="text-xl sm:text-2xl font-bold text-green-700 text-center mb-6 sm:mb-8 drop-shadow-lg">
             Batch of 221 — CSE Directory
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
