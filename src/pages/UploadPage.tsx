@@ -187,6 +187,7 @@ export default function UploadPage() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -325,6 +326,14 @@ export default function UploadPage() {
       return;
     }
 
+    if (!termsAccepted) {
+      setMessage({
+        type: 'error',
+        text: 'You must confirm that your information will be public and that you are a GUB CSE 221 student.',
+      });
+      return;
+    }
+
     if (!supabase) {
       setMessage({ type: 'error', text: 'Database not configured.' });
       return;
@@ -370,7 +379,9 @@ export default function UploadPage() {
 
       setMessage({
         type: 'success',
-        text: 'Information submitted successfully! Waiting for admin approval.',
+        text:
+          'Your information has been submitted successfully. After an admin verifies your details, ' +
+          'your profile will be visible in the public directory.',
       });
 
       setFormData({
@@ -693,10 +704,31 @@ export default function UploadPage() {
                 )}
               </div>
 
-              <div className="flex gap-4 pt-6">
+              <div className="pt-4 mt-2 border-t border-gray-200 space-y-3">
+                <p className="text-xs text-gray-600">
+                  All details you submit here (name, photos, contact and social links) will be{' '}
+                  <span className="font-semibold text-gray-800">publicly visible</span> on this
+                  website. Anyone can view and find this information.
+                </p>
+                <label className="flex items-start gap-2 text-xs sm:text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    required
+                  />
+                  <span>
+                    I understand that my information will be publicly available on this site and I
+                    confirm that I am a student of Green University of Bangladesh, CSE Batch 221.
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex gap-4 pt-4">
                 <button
                   type="submit"
-                  disabled={loading || cropMode !== null || !isSupabaseConfigured}
+                  disabled={loading || cropMode !== null || !isSupabaseConfigured || !termsAccepted}
                   className="flex-1 bg-gradient-to-r from-green-600 via-emerald-500 to-sky-500 hover:from-green-700 hover:via-emerald-600 hover:to-sky-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-all transform hover:scale-105"
                 >
                   {loading ? 'Submitting...' : 'Submit Information'}
@@ -716,6 +748,7 @@ export default function UploadPage() {
                     setProfilePhoto('');
                     setCoverPhoto('');
                     setCropMode(null);
+                    setTermsAccepted(false);
                   }}
                   className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 rounded-lg transition-colors"
                 >

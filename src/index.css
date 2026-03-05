@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  .animate-fade-in-up {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fade-in-up 0.45s ease-out forwards;
+  }
+
+  .glass-panel {
+    background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.18), transparent 55%),
+      radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 55%),
+      rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+  }
+}
+
+@keyframes fade-in-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
