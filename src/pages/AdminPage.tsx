@@ -185,7 +185,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
-          <p className="text-gray-600 mb-6">Sign in with your Supabase account</p>
+          <p className="text-gray-600 mb-6">Sign in with your admin account</p>
 
           {message && (
             <div
