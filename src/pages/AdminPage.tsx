@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
-import { CheckCircle, XCircle, Trash2, LogOut } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, LogOut, Download } from 'lucide-react';
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL?.trim(); // Optional: only this email can access admin
 
@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [ipInfo, setIpInfo] = useState<any | null>(null);
   const [ipLoading, setIpLoading] = useState(false);
   const [ipError, setIpError] = useState<string | null>(null);
+  const [downloadingJson, setDownloadingJson] = useState(false);
 
   useEffect(() => {
     const client = supabase;
@@ -58,6 +59,48 @@ export default function AdminPage() {
       fetchStudents();
     }
   }, [authenticated]);
+
+  const downloadAllStudentsJson = async () => {
+    if (!supabase) return;
+    try {
+      setDownloadingJson(true);
+      setMessage(null);
+
+      // Fetch all rows (increase range if you expect >10k)
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('student_id', { ascending: true })
+        .range(0, 9999);
+
+      if (error) throw error;
+
+      const payload = {
+        exported_at: new Date().toISOString(),
+        exported_by: userEmail,
+        count: (data || []).length,
+        students: data || [],
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      a.href = url;
+      a.download = `students-export-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      setMessage({ type: 'success', text: 'JSON exported successfully.' });
+      setTimeout(() => setMessage(null), 2000);
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Failed to export JSON.' });
+    } finally {
+      setDownloadingJson(false);
+    }
+  };
 
   // Fetch geo info for selected student's IP using geo.js
   useEffect(() => {
@@ -322,6 +365,15 @@ export default function AdminPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={downloadAllStudentsJson}
+              disabled={downloadingJson}
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-3 rounded-lg font-semibold transition-colors"
+            >
+              <Download size={18} />
+              {downloadingJson ? 'Exporting...' : 'Download JSON'}
+            </button>
             <button
               type="button"
               onClick={handleSignOut}

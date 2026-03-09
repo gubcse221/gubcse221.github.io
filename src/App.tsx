@@ -61,6 +61,12 @@ function App() {
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [contributors, setContributors] = useState<GithubContributor[]>([]);
+  const [dataMode, setDataMode] = useState<'online' | 'offline'>(
+    isSupabaseConfigured ? 'online' : 'offline'
+  );
+  const [offlineReason, setOfflineReason] = useState<string | null>(
+    isSupabaseConfigured ? null : 'Supabase not configured'
+  );
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -69,6 +75,7 @@ function App() {
 
   // Ref for scroll event
   const loaderRef = useRef<HTMLDivElement | null>(null);
+  const localStudentsCacheRef = useRef<Student[] | null>(null);
 
   // Fetch initial students and reset on search
   useEffect(() => {
@@ -102,9 +109,49 @@ function App() {
 
   // Fetch students with optional search, page
   const fetchStudents = useCallback(async (pageNum: number, query: string) => {
-    if (!supabase) {
-      setLoading(false);
+    let usedOffline = false;
+    const loadFromLocal = async () => {
+      usedOffline = true;
+      let localStudents: Student[] = localStudentsCacheRef.current || [];
+      if (!localStudentsCacheRef.current) {
+        try {
+          const mod = await import('./data/students.json');
+          const raw = (mod as any).default ?? mod;
+          const extracted = (raw?.students ?? raw) as Student[];
+          localStudents = Array.isArray(extracted) ? extracted : [];
+          localStudentsCacheRef.current = localStudents;
+        } catch {
+          localStudents = [];
+        }
+      }
+
+      const all = (localStudents || [])
+        .filter((s) => (s as any).authorized === 1 || (s as any).authorized === true)
+        .slice()
+        .sort((a, b) => String(a.student_id).localeCompare(String(b.student_id)));
+
+      const q = query.trim().toLowerCase();
+      const filtered = q
+        ? all.filter(
+            (s) =>
+              String(s.name || '').toLowerCase().includes(q) ||
+              String(s.student_id || '').toLowerCase().includes(q)
+          )
+        : all;
+
+      // Offline mode: load all matching students at once (no pagination)
+      setStudents(filtered);
+      setFilteredStudents(filtered);
       setHasMore(false);
+
+      setLoading(false);
+      setFetchingMore(false);
+      setDataMode('offline');
+    };
+
+    if (!supabase || !isSupabaseConfigured) {
+      setOfflineReason('Supabase not configured');
+      await loadFromLocal();
       return;
     }
     try {
@@ -152,12 +199,18 @@ function App() {
       } else {
         setHasMore(pageFiltered.length === PAGE_SIZE);
       }
+      setDataMode('online');
+      setOfflineReason(null);
     } catch (e) {
-      setHasMore(false);
       console.error('Error fetching students:', e);
+      setOfflineReason('Could not reach Supabase (showing offline data)');
+      await loadFromLocal();
     } finally {
-      setLoading(false);
-      setFetchingMore(false);
+      // loadFromLocal() already clears these when offline
+      if (!usedOffline) {
+        setLoading(false);
+        setFetchingMore(false);
+      }
     }
   }, []);
 
@@ -278,6 +331,7 @@ function App() {
               setSearchQuery(searchInput.trim());
             }}
           >
+
             <div className="relative">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -301,10 +355,11 @@ function App() {
         </div>
       </header>
 
-      {!isSupabaseConfigured && (
+      {dataMode === 'offline' && (
         <div className="container mx-auto px-4 py-4 text-center">
           <div className="inline-block bg-amber-50 text-amber-800 px-4 py-2 rounded-lg text-sm border border-amber-200">
-            Database not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to load data.
+            Showing offline data from <span className="font-semibold">students.json</span>.
+            {offlineReason ? ` (${offlineReason})` : ''}
           </div>
         </div>
       )}
@@ -458,8 +513,26 @@ function App() {
               <Github size={16} />
               <span className="font-medium">View on GitHub</span>
             </a>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <span
+                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
+                  dataMode === 'online'
+                    ? 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40'
+                    : 'bg-amber-400/15 text-amber-100 border-amber-300/40'
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    dataMode === 'online' ? 'bg-emerald-300' : 'bg-amber-300'
+                  }`}
+                />
+                {dataMode === 'online' ? 'Online (Supabase)' : 'Offline (local JSON)'}
+              </span>
+              {dataMode === 'offline' && offlineReason && (
+                <span className="text-xs text-white/80">{offlineReason}</span>
+              )}
+            </div>
           </div>
-
           {contributors.length > 0 && (
             <div className="mt-3 space-y-2 text-xs text-gray-300">
               <p className="flex items-center justify-center gap-1 text-[11px] sm:text-xs text-gray-400">
