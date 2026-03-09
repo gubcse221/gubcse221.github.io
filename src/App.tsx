@@ -58,6 +58,7 @@ function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [contributors, setContributors] = useState<GithubContributor[]>([]);
 
@@ -110,18 +111,17 @@ function App() {
       setLoading(true);
       const from = (pageNum - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
+
+      // Base request for authorized students ordered by student_id
       let request = supabase
         .from('students')
         .select('*')
         .eq('authorized', 1)
-        .order('student_id', { ascending: true })
-        .range(from, to);
+        .order('student_id', { ascending: true });
 
-      if (query) {
-        // Can't do case-insensitive search in Supabase easily, so fetch larger chunk client-side if searching
-        // Solution: Grab all filtered if query (but this is a limitation).
-        // For real apps consider full-text search setup in DB or edge function
-        request = request; // Keep as is; fetch page and filter client-side.
+      // If no search query, use paginated range; if searching, fetch all and filter client-side
+      if (!query) {
+        request = request.range(from, to);
       }
 
       const { data, error } = await request;
@@ -146,7 +146,12 @@ function App() {
         setFilteredStudents((prev) => [...prev, ...pageFiltered]);
       }
 
-      setHasMore(pageFiltered.length === PAGE_SIZE);
+      // When searching, we fetched all authorized students in one go, so disable "load more"
+      if (query) {
+        setHasMore(false);
+      } else {
+        setHasMore(pageFiltered.length === PAGE_SIZE);
+      }
     } catch (e) {
       setHasMore(false);
       console.error('Error fetching students:', e);
@@ -266,7 +271,13 @@ function App() {
             Return 0; — Graduation Day
           </p>
 
-          <div className="mt-8 max-w-xl animate-fade-in-up">
+          <form
+            className="mt-8 max-w-xl animate-fade-in-up"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSearchQuery(searchInput.trim());
+            }}
+          >
             <div className="relative">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -275,12 +286,18 @@ function App() {
               <input
                 type="text"
                 placeholder="Search by name or student ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/95/90 text-gray-900 placeholder-gray-500 shadow-[0_18px_45px_rgba(15,23,42,0.65)] focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-emerald-900/60"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-24 py-3 rounded-2xl bg-white/95/90 text-gray-900 placeholder-gray-500 shadow-[0_18px_45px_rgba(15,23,42,0.65)] focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-emerald-900/60"
               />
+              <button
+                type="submit"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-emerald-900/60"
+              >
+                Search
+              </button>
             </div>
-          </div>
+          </form>
         </div>
       </header>
 
