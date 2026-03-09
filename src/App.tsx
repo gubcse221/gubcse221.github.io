@@ -65,37 +65,50 @@ function App() {
   const loaderRef = useRef<HTMLDivElement | null>(null);
   const localStudentsCacheRef = useRef<Student[] | null>(null);
 
-  // Local JSON (offline) students
+  // Local JSON (offline) students - robust offline fallback regardless of supabase status
   const { data: offlineStudents = [] } = useQuery<Student[]>({
     queryKey: ['students', 'offline', searchQuery.trim()],
-    enabled: !isSupabaseConfigured,
+    // Always enabled; loading the offline data is safe even if supabase is configured.
+    enabled: true,
     queryFn: async () => {
-      let localStudents: Student[] = localStudentsCacheRef.current || [];
-      if (!localStudentsCacheRef.current) {
-        const mod = await import('./data/students.json');
-        const raw = (mod as any).default ?? mod;
-        const extracted = (raw?.students ?? raw) as Student[];
-        localStudents = Array.isArray(extracted) ? extracted : [];
-        localStudentsCacheRef.current = localStudents;
+      try {
+        let localStudents: Student[] = localStudentsCacheRef.current || [];
+        if (!localStudentsCacheRef.current) {
+          // Try native import
+          let mod;
+          try {
+            mod = await import('./data/students.json');
+          } catch (err) {
+            // Fallback: try fetch (Vite/other dev servers may need this)
+            const resp = await fetch('./data/students.json');
+            mod = await resp.json();
+          }
+          const raw = (mod as any).default ?? mod;
+          const extracted = (raw?.students ?? raw) as Student[];
+          localStudents = Array.isArray(extracted) ? extracted : [];
+          localStudentsCacheRef.current = localStudents;
+        }
+
+        const all = (localStudents || [])
+          .filter((s) => (s as any).authorized === 1 || (s as any).authorized === true)
+          .slice()
+          .sort((a, b) => String(a.student_id).localeCompare(String(b.student_id)));
+
+        const q = searchQuery.trim().toLowerCase();
+        return q
+          ? all.filter(
+              (s) =>
+                String(s.name || '').toLowerCase().includes(q) ||
+                String(s.student_id || '').toLowerCase().includes(q)
+            )
+          : all;
+      } catch (err) {
+        // If we can't load the JSON at all, return empty
+        return [];
       }
-
-      const all = (localStudents || [])
-        .filter((s) => (s as any).authorized === 1 || (s as any).authorized === true)
-        .slice()
-        .sort((a, b) => String(a.student_id).localeCompare(String(b.student_id)));
-
-      const q = searchQuery.trim().toLowerCase();
-      return q
-        ? all.filter(
-            (s) =>
-              String(s.name || '').toLowerCase().includes(q) ||
-              String(s.student_id || '').toLowerCase().includes(q)
-          )
-        : all;
     },
     staleTime: Infinity,
   });
-
   // Supabase students (online) with infinite scroll
   const {
     data: onlinePages,
@@ -292,25 +305,7 @@ function App() {
               setSearchQuery(searchInput.trim());
             }}
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <span
-                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
-                  dataMode === 'online'
-                    ? 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40'
-                    : 'bg-amber-400/15 text-amber-100 border-amber-300/40'
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    dataMode === 'online' ? 'bg-emerald-300' : 'bg-amber-300'
-                  }`}
-                />
-                {dataMode === 'online' ? 'Online (Supabase)' : 'Offline (local JSON)'}
-              </span>
-              {dataMode === 'offline' && offlineReason && (
-                <span className="text-xs text-white/80">{offlineReason}</span>
-              )}
-            </div>
+        
 
             <div className="relative">
               <Search
@@ -493,6 +488,25 @@ function App() {
               <Github size={16} />
               <span className="font-medium">View on GitHub</span>
             </a>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <span
+                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
+                  dataMode === 'online'
+                    ? 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40'
+                    : 'bg-amber-400/15 text-amber-100 border-amber-300/40'
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    dataMode === 'online' ? 'bg-emerald-300' : 'bg-amber-300'
+                  }`}
+                />
+                {dataMode === 'online' ? 'Online (Supabase)' : 'Offline (local JSON)'}
+              </span>
+              {dataMode === 'offline' && offlineReason && (
+                <span className="text-xs text-white/80">{offlineReason}</span>
+              )}
+            </div>
           </div>
           {contributors.length > 0 && (
             <div className="mt-3 space-y-2 text-xs text-gray-300">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
 import { CheckCircle, XCircle, Trash2, LogOut, Download } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,6 +17,8 @@ export default function AdminPage() {
   const [ipInfo, setIpInfo] = useState<any | null>(null);
   const [ipLoading, setIpLoading] = useState(false);
   const [ipError, setIpError] = useState<string | null>(null);
+
+  const saveButtonRef = useRef<HTMLButtonElement>(null); // ref for Save Changes button
 
   const queryClient = useQueryClient();
 
@@ -291,6 +293,24 @@ export default function AdminPage() {
     setMessage({ type: 'success', text: 'Signed out' });
     setTimeout(() => setMessage(null), 2000);
   };
+
+  // Keyboard F9 handler for saving changes
+  const handleF9Save = useCallback((e: KeyboardEvent) => {
+    // Only trigger if edit dialog is open and Save Changes is not already pending
+    if (e.key === "F9" && selectedStudent && editableStudent && !updateMutation.isPending) {
+      e.preventDefault();
+      if (saveButtonRef.current) {
+        saveButtonRef.current.click();
+      }
+    }
+  }, [selectedStudent, editableStudent, updateMutation.isPending]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleF9Save);
+    return () => {
+      window.removeEventListener('keydown', handleF9Save);
+    };
+  }, [handleF9Save]);
 
   if (!isSupabaseConfigured) {
     return (
@@ -806,6 +826,7 @@ export default function AdminPage() {
                 <div className="flex flex-col gap-2 pt-4">
                   <button
                     type="button"
+                    ref={saveButtonRef}
                     disabled={updateMutation.isPending}
                     onClick={async () => {
                       if (!supabase || !editableStudent) return;
