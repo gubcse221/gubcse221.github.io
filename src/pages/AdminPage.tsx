@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
 import { CheckCircle, XCircle, Trash2, LogOut, Download } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL?.trim(); // Optional: only this email can access admin
 
 export default function AdminPage() {
-  const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
-  const [approvedStudents, setApprovedStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [editableStudent, setEditableStudent] = useState<Student | null>(null);
@@ -16,11 +14,11 @@ export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [savingEdit, setSavingEdit] = useState(false);
   const [ipInfo, setIpInfo] = useState<any | null>(null);
   const [ipLoading, setIpLoading] = useState(false);
   const [ipError, setIpError] = useState<string | null>(null);
-  const [downloadingJson, setDownloadingJson] = useState(false);
+
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const client = supabase;
@@ -54,27 +52,115 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const pendingQuery = useQuery<Student[]>({
+    queryKey: ['students', 'pending'],
+    enabled: authenticated && !!supabase,
+    queryFn: async () => {
+      const { data, error } = await supabase!
+        .from('students')
+        .select('*')
+        .eq('authorized', 0)
+        .order('submitted_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as Student[];
+    },
+    staleTime: 1000 * 15,
+  });
+
+  const approvedQuery = useQuery<Student[]>({
+    queryKey: ['students', 'approved'],
+    enabled: authenticated && !!supabase,
+    queryFn: async () => {
+      const { data, error } = await supabase!
+        .from('students')
+        .select('*')
+        .eq('authorized', 1)
+        .order('student_id', { ascending: true });
+      if (error) throw error;
+      return (data || []) as Student[];
+    },
+    staleTime: 1000 * 15,
+  });
+
+  const pendingStudents = pendingQuery.data || [];
+  const approvedStudents = approvedQuery.data || [];
+  const loading = pendingQuery.isLoading || approvedQuery.isLoading;
+
+  const selectedStudentLatest = useMemo(() => {
+    if (!selectedStudent) return null;
+    return [...pendingStudents, ...approvedStudents].find((s) => s.id === selectedStudent.id) || selectedStudent;
+  }, [selectedStudent, pendingStudents, approvedStudents]);
+
   useEffect(() => {
-    if (authenticated) {
-      fetchStudents();
-    }
-  }, [authenticated]);
+    if (!selectedStudentLatest) return;
+    setSelectedStudent(selectedStudentLatest);
+    setEditableStudent(selectedStudentLatest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStudentLatest?.id]);
 
-  const downloadAllStudentsJson = async () => {
-    if (!supabase) return;
-    try {
-      setDownloadingJson(true);
-      setMessage(null);
+  const approveMutation = useMutation({
+    mutationFn: async (student: Student) => {
+      const { error } = await supabase!
+        .from('students')
+        .update({
+          authorized: 1,
+          profile_photo_url: student.profile_photo_base64 || student.profile_photo_url,
+          cover_photo_url: student.cover_photo_base64 || student.cover_photo_url,
+          approved_by: userEmail ?? null,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', student.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
 
-      // Fetch all rows (increase range if you expect >10k)
-      const { data, error } = await supabase
+  const deleteMutation = useMutation({
+    mutationFn: async (student: Student) => {
+      const { error } = await supabase!.from('students').delete().eq('id', student.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (s: Student) => {
+      const { error } = await supabase!
+        .from('students')
+        .update({
+          name: s.name,
+          student_id: s.student_id,
+          email: s.email,
+          phone_number: s.phone_number,
+          blood_group: s.blood_group,
+          gender: s.gender,
+          facebook_url: s.facebook_url,
+          twitter_url: s.twitter_url,
+          linkedin_url: s.linkedin_url,
+        })
+        .eq('id', s.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+
+  const exportJsonMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase!
         .from('students')
         .select('*')
         .order('student_id', { ascending: true })
         .range(0, 9999);
-
       if (error) throw error;
-
+      return (data || []) as Student[];
+    },
+    onSuccess: (data) => {
       const payload = {
         exported_at: new Date().toISOString(),
         exported_by: userEmail,
@@ -95,12 +181,11 @@ export default function AdminPage() {
 
       setMessage({ type: 'success', text: 'JSON exported successfully.' });
       setTimeout(() => setMessage(null), 2000);
-    } catch (e) {
+    },
+    onError: () => {
       setMessage({ type: 'error', text: 'Failed to export JSON.' });
-    } finally {
-      setDownloadingJson(false);
-    }
-  };
+    },
+  });
 
   // Fetch geo info for selected student's IP using geo.js
   useEffect(() => {
@@ -144,63 +229,13 @@ export default function AdminPage() {
     };
   }, [selectedStudent?.submit_ip]);
 
-  const fetchStudents = async () => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const { data: pending } = await supabase
-        .from('students')
-        .select('*')
-        .eq('authorized', 0)
-        .order('submitted_at', { ascending: false });
-
-      const { data: approved } = await supabase
-        .from('students')
-        .select('*')
-        .eq('authorized', 1)
-        .order('student_id', { ascending: true });
-
-      setPendingStudents(pending || []);
-      setApprovedStudents(approved || []);
-      if (selectedStudent) {
-        const updated = [...(pending || []), ...(approved || [])].find(
-          (s) => s.id === selectedStudent.id
-        );
-        if (updated) {
-          setSelectedStudent(updated);
-          setEditableStudent(updated);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching students:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleApprove = async (student: Student) => {
     if (!supabase) return;
     try {
-      const { error } = await supabase
-        .from('students')
-        .update({
-          authorized: 1,
-          profile_photo_url: student.profile_photo_base64 || student.profile_photo_url,
-          cover_photo_url: student.cover_photo_base64 || student.cover_photo_url,
-          approved_by: userEmail ?? null,
-          approved_at: new Date().toISOString(),
-        })
-        .eq('id', student.id);
-
-      if (error) throw error;
-
+      await approveMutation.mutateAsync(student);
       setMessage({ type: 'success', text: `${student.name} approved!` });
       setSelectedStudent(null);
       setEditableStudent(null);
-      fetchStudents();
-
       setTimeout(() => setMessage(null), 2000);
     } catch {
       setMessage({ type: 'error', text: 'Failed to approve student' });
@@ -211,15 +246,10 @@ export default function AdminPage() {
     if (!supabase) return;
     if (!window.confirm(`Delete ${student.name} (${student.student_id})? This cannot be undone.`)) return;
     try {
-      const { error } = await supabase.from('students').delete().eq('id', student.id);
-
-      if (error) throw error;
-
+      await deleteMutation.mutateAsync(student);
       setMessage({ type: 'success', text: `${student.name} removed` });
       setSelectedStudent(null);
       setEditableStudent(null);
-      fetchStudents();
-
       setTimeout(() => setMessage(null), 2000);
     } catch {
       setMessage({ type: 'error', text: 'Failed to delete student' });
@@ -367,12 +397,12 @@ export default function AdminPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={downloadAllStudentsJson}
-              disabled={downloadingJson}
+              onClick={() => exportJsonMutation.mutate()}
+              disabled={exportJsonMutation.isPending}
               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-4 py-3 rounded-lg font-semibold transition-colors"
             >
               <Download size={18} />
-              {downloadingJson ? 'Exporting...' : 'Download JSON'}
+              {exportJsonMutation.isPending ? 'Exporting...' : 'Download JSON'}
             </button>
             <button
               type="button"
@@ -514,8 +544,17 @@ export default function AdminPage() {
 
           {selectedStudent && editableStudent && (
             <div className="bg-white rounded-2xl shadow-lg p-6 h-fit sticky top-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Review Details</h3>
-
+              <h3 className="text-xl font-bold text-gray-800 mb-4 float-left">Review Details</h3>
+              <button
+                  onClick={() => {
+                    setSelectedStudent(null);
+                    setEditableStudent(null);
+                  }}
+                  type="button"
+                  className="float-right text-red-500 hover:text-red-700 text-xl font-bold"
+                >
+                  X
+                </button>
               <div className="space-y-4">
                 <div>
                   <img
@@ -539,7 +578,26 @@ export default function AdminPage() {
                   />
                   <p className="text-xs text-gray-500 text-center">Cover Photo</p>
                 </div>
-
+                <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApprove(selectedStudent)}
+                      type="button"
+                      disabled={approveMutation.isPending}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                    >
+                      <CheckCircle size={18} />
+                      {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(selectedStudent)}
+                      type="button"
+                      disabled={deleteMutation.isPending}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Trash2 size={18} />
+                      {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
                 <div className="border-t pt-4 space-y-3">
                   <div className="space-y-1">
                     <label className="block text-xs font-semibold text-gray-600">
@@ -748,56 +806,21 @@ export default function AdminPage() {
                 <div className="flex flex-col gap-2 pt-4">
                   <button
                     type="button"
-                    disabled={savingEdit}
+                    disabled={updateMutation.isPending}
                     onClick={async () => {
                       if (!supabase || !editableStudent) return;
-                      setSavingEdit(true);
                       try {
-                        const { error } = await supabase
-                          .from('students')
-                          .update({
-                            name: editableStudent.name,
-                            student_id: editableStudent.student_id,
-                            email: editableStudent.email,
-                            phone_number: editableStudent.phone_number,
-                            blood_group: editableStudent.blood_group,
-                            gender: editableStudent.gender,
-                            facebook_url: editableStudent.facebook_url,
-                            twitter_url: editableStudent.twitter_url,
-                            linkedin_url: editableStudent.linkedin_url,
-                          })
-                          .eq('id', editableStudent.id);
-                        if (error) throw error;
+                        await updateMutation.mutateAsync(editableStudent);
                         setMessage({ type: 'success', text: 'Student updated' });
-                        fetchStudents();
                       } catch {
                         setMessage({ type: 'error', text: 'Failed to update student' });
-                      } finally {
-                        setSavingEdit(false);
                       }
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
                   >
-                    {savingEdit ? 'Saving...' : 'Save Changes'}
+                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleApprove(selectedStudent)}
-                      type="button"
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                    >
-                      <CheckCircle size={18} />
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleDelete(selectedStudent)}
-                      type="button"
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Trash2 size={18} />
-                      Delete
-                    </button>
-                  </div>
+                 
                 </div>
 
                 <button

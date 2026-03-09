@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, isSupabaseConfigured, Student } from './lib/supabase';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   Search,
   Facebook,
@@ -55,74 +56,27 @@ const FullScreenBorderLoader = () => (
 const PAGE_SIZE = 8;
 
 function App() {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [loading, setLoading] = useState(true);
   const [contributors, setContributors] = useState<GithubContributor[]>([]);
-  const [dataMode, setDataMode] = useState<'online' | 'offline'>(
-    isSupabaseConfigured ? 'online' : 'offline'
-  );
-  const [offlineReason, setOfflineReason] = useState<string | null>(
-    isSupabaseConfigured ? null : 'Supabase not configured'
-  );
-
-  // Pagination state
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [fetchingMore, setFetchingMore] = useState(false);
+  const [offlineReason, setOfflineReason] = useState<string | null>(null);
 
   // Ref for scroll event
   const loaderRef = useRef<HTMLDivElement | null>(null);
   const localStudentsCacheRef = useRef<Student[] | null>(null);
 
-  // Fetch initial students and reset on search
-  useEffect(() => {
-    setPage(1);
-    setHasMore(true);
-    setStudents([]);
-    setFilteredStudents([]);
-    setLoading(true);
-    fetchStudents(1, searchQuery.trim());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
-
-  // Infinite Scroll: Attach scroll listener
-  useEffect(() => {
-    function handleScroll() {
-      if (fetchingMore || loading || !hasMore) return;
-      if (!loaderRef.current) return;
-
-      const loader = loaderRef.current.getBoundingClientRect();
-
-      // If loader is close to bottom of window
-      if (loader.top <= window.innerHeight + 100) {
-        // load next page
-        fetchMoreStudents();
-      }
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchingMore, loading, hasMore, students, searchQuery]);
-
-  // Fetch students with optional search, page
-  const fetchStudents = useCallback(async (pageNum: number, query: string) => {
-    let usedOffline = false;
-    const loadFromLocal = async () => {
-      usedOffline = true;
+  // Local JSON (offline) students
+  const { data: offlineStudents = [] } = useQuery<Student[]>({
+    queryKey: ['students', 'offline', searchQuery.trim()],
+    enabled: !isSupabaseConfigured,
+    queryFn: async () => {
       let localStudents: Student[] = localStudentsCacheRef.current || [];
       if (!localStudentsCacheRef.current) {
-        try {
-          const mod = await import('./data/students.json');
-          const raw = (mod as any).default ?? mod;
-          const extracted = (raw?.students ?? raw) as Student[];
-          localStudents = Array.isArray(extracted) ? extracted : [];
-          localStudentsCacheRef.current = localStudents;
-        } catch {
-          localStudents = [];
-        }
+        const mod = await import('./data/students.json');
+        const raw = (mod as any).default ?? mod;
+        const extracted = (raw?.students ?? raw) as Student[];
+        localStudents = Array.isArray(extracted) ? extracted : [];
+        localStudentsCacheRef.current = localStudents;
       }
 
       const all = (localStudents || [])
@@ -130,99 +84,106 @@ function App() {
         .slice()
         .sort((a, b) => String(a.student_id).localeCompare(String(b.student_id)));
 
-      const q = query.trim().toLowerCase();
-      const filtered = q
+      const q = searchQuery.trim().toLowerCase();
+      return q
         ? all.filter(
             (s) =>
               String(s.name || '').toLowerCase().includes(q) ||
               String(s.student_id || '').toLowerCase().includes(q)
           )
         : all;
+    },
+    staleTime: Infinity,
+  });
 
-      // Offline mode: load all matching students at once (no pagination)
-      setStudents(filtered);
-      setFilteredStudents(filtered);
-      setHasMore(false);
+  // Supabase students (online) with infinite scroll
+  const {
+    data: onlinePages,
+    isLoading: isOnlineLoading,
+    isError: isOnlineError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<Student[]>({
+    queryKey: ['students', 'online', searchQuery.trim()],
+    enabled: isSupabaseConfigured,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      if (!supabase) return [];
+      const pageNum = Number(pageParam) || 1;
+      const q = searchQuery.trim();
 
-      setLoading(false);
-      setFetchingMore(false);
-      setDataMode('offline');
-    };
-
-    if (!supabase || !isSupabaseConfigured) {
-      setOfflineReason('Supabase not configured');
-      await loadFromLocal();
-      return;
-    }
-    try {
-      setLoading(true);
-      const from = (pageNum - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      // Base request for authorized students ordered by student_id
       let request = supabase
         .from('students')
         .select('*')
         .eq('authorized', 1)
         .order('student_id', { ascending: true });
 
-      // If no search query, use paginated range; if searching, fetch all and filter client-side
-      if (!query) {
+      if (!q) {
+        const from = (pageNum - 1) * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
         request = request.range(from, to);
       }
 
       const { data, error } = await request;
       if (error) throw error;
 
-      // Only client-side filter (as above), since .ilike is not used for cross-fields on Supabase free tier
-      let pageFiltered = data || [];
-      if (query) {
-        const q = query.toLowerCase();
-        pageFiltered = pageFiltered.filter(
+      let result = (data || []) as Student[];
+      if (q) {
+        const lower = q.toLowerCase();
+        result = result.filter(
           (s) =>
-            s.name.toLowerCase().includes(q) ||
-            s.student_id.toLowerCase().includes(q)
+            String(s.name || '').toLowerCase().includes(lower) ||
+            String(s.student_id || '').toLowerCase().includes(lower)
         );
       }
+      return result;
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      const q = searchQuery.trim();
+      if (q) return undefined; // searching loads all in first page
+      return lastPage.length === PAGE_SIZE ? allPages.length + 1 : undefined;
+    },
+    staleTime: 1000 * 30,
+  });
 
-      if (pageNum === 1) {
-        setStudents(pageFiltered);
-        setFilteredStudents(pageFiltered);
-      } else {
-        setStudents((prev) => [...prev, ...pageFiltered]);
-        setFilteredStudents((prev) => [...prev, ...pageFiltered]);
-      }
+  const dataMode: 'online' | 'offline' = isSupabaseConfigured && !isOnlineError ? 'online' : 'offline';
 
-      // When searching, we fetched all authorized students in one go, so disable "load more"
-      if (query) {
-        setHasMore(false);
-      } else {
-        setHasMore(pageFiltered.length === PAGE_SIZE);
-      }
-      setDataMode('online');
-      setOfflineReason(null);
-    } catch (e) {
-      console.error('Error fetching students:', e);
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setOfflineReason('Supabase not configured');
+    } else if (isOnlineError) {
       setOfflineReason('Could not reach Supabase (showing offline data)');
-      await loadFromLocal();
-    } finally {
-      // loadFromLocal() already clears these when offline
-      if (!usedOffline) {
-        setLoading(false);
-        setFetchingMore(false);
+    } else {
+      setOfflineReason(null);
+    }
+  }, [isOnlineError]);
+
+  const students: Student[] = useMemo(() => {
+    if (dataMode === 'offline') return offlineStudents;
+    return (onlinePages?.pages || []).flat();
+  }, [dataMode, offlineStudents, onlinePages]);
+
+  const filteredStudents: Student[] = students;
+  const hasMore = dataMode === 'online' ? Boolean(hasNextPage) : false;
+  const fetchingMore = dataMode === 'online' ? Boolean(isFetchingNextPage) : false;
+  const loading = dataMode === 'online' ? isOnlineLoading : false;
+
+  // Infinite Scroll: Attach scroll listener (online only)
+  useEffect(() => {
+    function handleScroll() {
+      if (!hasMore || loading || fetchingMore || dataMode !== 'online') return;
+      if (!loaderRef.current) return;
+
+      const loader = loaderRef.current.getBoundingClientRect();
+      if (loader.top <= window.innerHeight + 100) {
+        fetchNextPage();
       }
     }
-  }, []);
 
-  // Function to fetch more students (pagination)
-  const fetchMoreStudents = useCallback(() => {
-    if (fetchingMore || loading || !hasMore) return;
-    setFetchingMore(true);
-    const nextPage = page + 1;
-    fetchStudents(nextPage, searchQuery.trim());
-    setPage(nextPage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchingMore, loading, hasMore, page, searchQuery, fetchStudents]);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [hasMore, loading, fetchingMore, dataMode, fetchNextPage]);
 
   // Fetch GitHub contributors for footer
   useEffect(() => {
@@ -331,6 +292,25 @@ function App() {
               setSearchQuery(searchInput.trim());
             }}
           >
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <span
+                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
+                  dataMode === 'online'
+                    ? 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40'
+                    : 'bg-amber-400/15 text-amber-100 border-amber-300/40'
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    dataMode === 'online' ? 'bg-emerald-300' : 'bg-amber-300'
+                  }`}
+                />
+                {dataMode === 'online' ? 'Online (Supabase)' : 'Offline (local JSON)'}
+              </span>
+              {dataMode === 'offline' && offlineReason && (
+                <span className="text-xs text-white/80">{offlineReason}</span>
+              )}
+            </div>
 
             <div className="relative">
               <Search
@@ -513,25 +493,6 @@ function App() {
               <Github size={16} />
               <span className="font-medium">View on GitHub</span>
             </a>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <span
-                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
-                  dataMode === 'online'
-                    ? 'bg-emerald-400/15 text-emerald-100 border-emerald-300/40'
-                    : 'bg-amber-400/15 text-amber-100 border-amber-300/40'
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    dataMode === 'online' ? 'bg-emerald-300' : 'bg-amber-300'
-                  }`}
-                />
-                {dataMode === 'online' ? 'Online (Supabase)' : 'Offline (local JSON)'}
-              </span>
-              {dataMode === 'offline' && offlineReason && (
-                <span className="text-xs text-white/80">{offlineReason}</span>
-              )}
-            </div>
           </div>
           {contributors.length > 0 && (
             <div className="mt-3 space-y-2 text-xs text-gray-300">
