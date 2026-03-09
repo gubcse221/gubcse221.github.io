@@ -52,7 +52,7 @@ const FullScreenBorderLoader = () => (
   </div>
 );
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 
 function App() {
   const [students, setStudents] = useState<Student[]>([]);
