@@ -138,34 +138,36 @@ export default function UploadPage() {
         .eq('student_id', formData.student_id)
         .maybeSingle();
 
+      const payload = {
+        name: formData.name,
+        phone_number: formData.phone_number,
+        student_id: formData.student_id,
+        email: formData.email,
+        facebook_url: formData.facebook_url || null,
+        twitter_url: formData.twitter_url || null,
+        linkedin_url: formData.linkedin_url || null,
+        profile_photo_base64: profilePhoto,
+        cover_photo_base64: coverPhoto,
+        profile_photo_url: '',
+        cover_photo_url: '',
+        authorized: 0,
+        submitted_at: new Date().toISOString(),
+      };
+
+      let dbError = null;
+
       if (existing) {
-        setMessage({
-          type: 'error',
-          text: 'Student ID already exists. Please use a different ID.',
-        });
-        setLoading(false);
-        return;
+        const { error } = await supabase
+          .from('students')
+          .update(payload)
+          .eq('id', existing.id);
+        dbError = error;
+      } else {
+        const { error } = await supabase.from('students').insert([payload]);
+        dbError = error;
       }
 
-      const { error: insertError } = await supabase.from('students').insert([
-        {
-          name: formData.name,
-          phone_number: formData.phone_number,
-          student_id: formData.student_id,
-          email: formData.email,
-          facebook_url: formData.facebook_url || null,
-          twitter_url: formData.twitter_url || null,
-          linkedin_url: formData.linkedin_url || null,
-          profile_photo_base64: profilePhoto,
-          cover_photo_base64: coverPhoto,
-          profile_photo_url: '',
-          cover_photo_url: '',
-          authorized: 0,
-          submitted_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (insertError) throw insertError;
+      if (dbError) throw dbError;
 
       setMessage({
         type: 'success',
