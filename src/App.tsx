@@ -358,9 +358,15 @@ function App() {
                     <h3 className="font-semibold text-slate-50 text-base sm:text-lg leading-tight mb-0.5 tracking-tight break-words">
                       {student.name}
                     </h3>
-                    <p className="text-emerald-300 font-medium text-xs sm:text-sm mb-4 sm:mb-5">
+                    <p className="text-emerald-300 font-medium text-xs sm:text-sm">
                       {student.student_id}
                     </p>
+                    {student.blood_group && (
+                      <p className="text-rose-300 font-medium text-[11px] sm:text-xs mb-3">
+                        Blood group: {student.blood_group}
+                      </p>
+                    )}
+                    {!student.blood_group && <div className="mb-4 sm:mb-5" />}
 
                     {/* Social links - modern circular icon buttons */}
                     <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">

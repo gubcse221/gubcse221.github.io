@@ -14,6 +14,8 @@ export default function UploadPage() {
     facebook_url: '',
     twitter_url: '',
     linkedin_url: '',
+    blood_group: '',
+    gender: '',
   });
 
   const [profilePhoto, setProfilePhoto] = useState<string>('');
@@ -27,8 +29,9 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [submitIp, setSubmitIp] = useState<string | null>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -138,6 +141,21 @@ export default function UploadPage() {
         .eq('student_id', formData.student_id)
         .maybeSingle();
 
+      // Best-effort: capture public IP for auditing
+      let ipToStore: string | null = submitIp;
+      if (!ipToStore) {
+        try {
+          const res = await fetch('https://api.ipify.org?format=json');
+          if (res.ok) {
+            const json = await res.json();
+            ipToStore = json.ip ?? null;
+            setSubmitIp(ipToStore);
+          }
+        } catch {
+          ipToStore = null;
+        }
+      }
+
       const payload = {
         name: formData.name,
         phone_number: formData.phone_number,
@@ -146,12 +164,15 @@ export default function UploadPage() {
         facebook_url: formData.facebook_url || null,
         twitter_url: formData.twitter_url || null,
         linkedin_url: formData.linkedin_url || null,
+        blood_group: formData.blood_group || null,
+        gender: formData.gender || null,
         profile_photo_base64: profilePhoto,
         cover_photo_base64: coverPhoto,
         profile_photo_url: '',
         cover_photo_url: '',
         authorized: 0,
         submitted_at: new Date().toISOString(),
+        submit_ip: ipToStore,
       };
 
       let dbError = null;
@@ -184,6 +205,8 @@ export default function UploadPage() {
         facebook_url: '',
         twitter_url: '',
         linkedin_url: '',
+        blood_group: '',
+        gender: '',
       });
       setProfilePhoto('');
       setCoverPhoto('');
@@ -318,6 +341,44 @@ export default function UploadPage() {
                     placeholder="+88 01234 567890"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Gender
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Blood Group
+                  </label>
+                  <select
+                    name="blood_group"
+                    value={formData.blood_group}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select blood group</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
                 </div>
               </div>
 
@@ -546,6 +607,8 @@ export default function UploadPage() {
                       facebook_url: '',
                       twitter_url: '',
                       linkedin_url: '',
+                      blood_group: '',
+                      gender: '',
                     });
                     setProfilePhoto('');
                     setCoverPhoto('');

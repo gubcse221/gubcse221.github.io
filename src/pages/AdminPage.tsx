@@ -10,11 +10,13 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [editableStudent, setEditableStudent] = useState<Student | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     const client = supabase;
@@ -74,6 +76,15 @@ export default function AdminPage() {
 
       setPendingStudents(pending || []);
       setApprovedStudents(approved || []);
+      if (selectedStudent) {
+        const updated = [...(pending || []), ...(approved || [])].find(
+          (s) => s.id === selectedStudent.id
+        );
+        if (updated) {
+          setSelectedStudent(updated);
+          setEditableStudent(updated);
+        }
+      }
     } catch (error) {
       console.error('Error fetching students:', error);
     } finally {
@@ -90,6 +101,8 @@ export default function AdminPage() {
           authorized: 1,
           profile_photo_url: student.profile_photo_base64 || student.profile_photo_url,
           cover_photo_url: student.cover_photo_base64 || student.cover_photo_url,
+          approved_by: userEmail ?? null,
+          approved_at: new Date().toISOString(),
         })
         .eq('id', student.id);
 
@@ -97,6 +110,7 @@ export default function AdminPage() {
 
       setMessage({ type: 'success', text: `${student.name} approved!` });
       setSelectedStudent(null);
+      setEditableStudent(null);
       fetchStudents();
 
       setTimeout(() => setMessage(null), 2000);
@@ -115,6 +129,7 @@ export default function AdminPage() {
 
       setMessage({ type: 'success', text: `${student.name} removed` });
       setSelectedStudent(null);
+      setEditableStudent(null);
       fetchStudents();
 
       setTimeout(() => setMessage(null), 2000);
@@ -153,6 +168,8 @@ export default function AdminPage() {
     await supabase.auth.signOut();
     setAuthenticated(false);
     setUserEmail(null);
+    setSelectedStudent(null);
+    setEditableStudent(null);
     setMessage({ type: 'success', text: 'Signed out' });
     setTimeout(() => setMessage(null), 2000);
   };
@@ -314,7 +331,10 @@ export default function AdminPage() {
                     <div
                       key={student.id}
                       className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => setSelectedStudent(student)}
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setEditableStudent(student);
+                      }}
                     >
                       <img
                         src={student.profile_photo_base64 || student.profile_photo_url}
@@ -323,7 +343,10 @@ export default function AdminPage() {
                       />
                       <div className="flex-1">
                         <h3 className="font-bold text-gray-800">{student.name}</h3>
-                        <p className="text-sm text-gray-600">{student.student_id}</p>
+                        <p className="text-sm text-gray-600">
+                          {student.student_id}
+                          {student.blood_group && ` · ${student.blood_group}`}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-gray-500">
@@ -359,7 +382,18 @@ export default function AdminPage() {
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-800">{student.name}</h3>
-                        <p className="text-sm text-gray-600">{student.student_id}</p>
+                        <p className="text-sm text-gray-600">
+                          {student.student_id}
+                          {student.blood_group && ` · ${student.blood_group}`}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end text-xs text-gray-500 mr-2">
+                        {student.approved_by && <span>Approved by {student.approved_by}</span>}
+                        {student.approved_at && (
+                          <span>
+                            {new Date(student.approved_at).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                       <CheckCircle className="text-emerald-600 shrink-0" size={20} />
                       <button
@@ -377,7 +411,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {selectedStudent && (
+          {selectedStudent && editableStudent && (
             <div className="bg-white rounded-2xl shadow-lg p-6 h-fit sticky top-8">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Review Details</h3>
 
@@ -405,45 +439,170 @@ export default function AdminPage() {
                   <p className="text-xs text-gray-500 text-center">Cover Photo</p>
                 </div>
 
-                <div className="border-t pt-4 space-y-2">
-                  <p>
-                    <span className="font-semibold text-gray-700">Name:</span>{' '}
-                    {selectedStudent.name}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-gray-700">ID:</span>{' '}
-                    {selectedStudent.student_id}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-gray-700">Email:</span>{' '}
-                    {selectedStudent.email}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-gray-700">Phone:</span>{' '}
-                    {selectedStudent.phone_number}
-                  </p>
+                <div className="border-t pt-4 space-y-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.name}
+                      onChange={(e) =>
+                        setEditableStudent({ ...editableStudent, name: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Student ID
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.student_id}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          student_id: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={editableStudent.email || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          email: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={editableStudent.phone_number || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          phone_number: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Blood Group
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.blood_group || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          blood_group: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1 text-xs text-gray-500">
+                    {selectedStudent.submit_ip && (
+                      <p>
+                        <span className="font-semibold">Submit IP:</span>{' '}
+                        {selectedStudent.submit_ip}
+                      </p>
+                    )}
+                    {selectedStudent.submitted_at && (
+                      <p>
+                        <span className="font-semibold">Submitted:</span>{' '}
+                        {new Date(selectedStudent.submitted_at).toLocaleString()}
+                      </p>
+                    )}
+                    {selectedStudent.approved_by && (
+                      <p>
+                        <span className="font-semibold">Approved by:</span>{' '}
+                        {selectedStudent.approved_by}
+                      </p>
+                    )}
+                    {selectedStudent.approved_at && (
+                      <p>
+                        <span className="font-semibold">Approved at:</span>{' '}
+                        {new Date(selectedStudent.approved_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex flex-col gap-2 pt-4">
                   <button
-                    onClick={() => handleApprove(selectedStudent)}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    type="button"
+                    disabled={savingEdit}
+                    onClick={async () => {
+                      if (!supabase || !editableStudent) return;
+                      setSavingEdit(true);
+                      try {
+                        const { error } = await supabase
+                          .from('students')
+                          .update({
+                            name: editableStudent.name,
+                            student_id: editableStudent.student_id,
+                            email: editableStudent.email,
+                            phone_number: editableStudent.phone_number,
+                            blood_group: editableStudent.blood_group,
+                          })
+                          .eq('id', editableStudent.id);
+                        if (error) throw error;
+                        setMessage({ type: 'success', text: 'Student updated' });
+                        fetchStudents();
+                      } catch {
+                        setMessage({ type: 'error', text: 'Failed to update student' });
+                      } finally {
+                        setSavingEdit(false);
+                      }
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
                   >
-                    <CheckCircle size={18} />
-                    Approve
+                    {savingEdit ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button
-                    onClick={() => handleDelete(selectedStudent)}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Trash2 size={18} />
-                    Delete
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApprove(selectedStudent)}
+                      type="button"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                    >
+                      <CheckCircle size={18} />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleDelete(selectedStudent)}
+                      type="button"
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Trash2 size={18} />
+                      Delete
+                    </button>
+                  </div>
                 </div>
 
                 <button
-                  onClick={() => setSelectedStudent(null)}
-                  className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 rounded-lg transition-colors"
+                  onClick={() => {
+                    setSelectedStudent(null);
+                    setEditableStudent(null);
+                  }}
+                  type="button"
+                  className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 rounded-lg transition-colors text-sm"
                 >
                   Close
                 </button>

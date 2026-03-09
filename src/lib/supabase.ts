@@ -24,4 +24,9 @@ export interface Student {
   email?: string;
   created_at: string;
   submitted_at?: string;
+  blood_group?: string;
+  gender?: string;
+  submit_ip?: string;
+  approved_by?: string;
+  approved_at?: string;
 }
