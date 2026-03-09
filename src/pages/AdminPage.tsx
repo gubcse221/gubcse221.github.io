@@ -17,6 +17,9 @@ export default function AdminPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [ipInfo, setIpInfo] = useState<any | null>(null);
+  const [ipLoading, setIpLoading] = useState(false);
+  const [ipError, setIpError] = useState<string | null>(null);
 
   useEffect(() => {
     const client = supabase;
@@ -55,6 +58,48 @@ export default function AdminPage() {
       fetchStudents();
     }
   }, [authenticated]);
+
+  // Fetch geo info for selected student's IP using geo.js
+  useEffect(() => {
+    setIpInfo(null);
+    setIpError(null);
+    if (!selectedStudent?.submit_ip) {
+      setIpLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const loadGeo = async () => {
+      try {
+        setIpLoading(true);
+        const res = await fetch(
+          `https://get.geojs.io/v1/ip/geo.json?ip=${encodeURIComponent(
+            selectedStudent.submit_ip as string
+          )}`
+        );
+        if (!res.ok) throw new Error(`geo.js error ${res.status}`);
+        const raw = await res.json();
+        const data = Array.isArray(raw) ? raw[0] : raw;
+        if (!cancelled) {
+          setIpInfo(data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setIpError('Could not load location for this IP.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIpLoading(false);
+        }
+      }
+    };
+
+    loadGeo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStudent?.submit_ip]);
 
   const fetchStudents = async () => {
     if (!supabase) {
@@ -373,7 +418,11 @@ export default function AdminPage() {
                   {approvedStudents.map((student) => (
                     <div
                       key={student.id}
-                      className="flex items-center gap-4 p-3 bg-emerald-50 rounded-lg"
+                      className="flex items-center gap-4 p-3 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors"
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setEditableStudent(student);
+                      }}
                     >
                       <img
                         src={student.profile_photo_url || student.profile_photo_base64}
@@ -517,12 +566,111 @@ export default function AdminPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Gender
+                    </label>
+                    <select
+                      value={editableStudent.gender || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          gender: e.target.value,
+                        } as Student)
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                    >
+                      <option value="">(unchanged / none)</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Facebook URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editableStudent.facebook_url || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          facebook_url: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      X / Twitter URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editableStudent.twitter_url || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          twitter_url: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      LinkedIn URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editableStudent.linkedin_url || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          linkedin_url: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
                   <div className="space-y-1 text-xs text-gray-500">
                     {selectedStudent.submit_ip && (
                       <p>
                         <span className="font-semibold">Submit IP:</span>{' '}
                         {selectedStudent.submit_ip}
                       </p>
+                    )}
+                    {selectedStudent.submit_ip && (
+                      <>
+                        {ipLoading && <p>Looking up location (geo.js)...</p>}
+                        {ipError && <p className="text-red-500">{ipError}</p>}
+                        {ipInfo && (
+                          <>
+                            <p>
+                              <span className="font-semibold">Country:</span>{' '}
+                              {ipInfo.country} ({ipInfo.country_code})
+                            </p>
+                            <p>
+                              <span className="font-semibold">Region / City:</span>{' '}
+                              {ipInfo.region} {ipInfo.city && `· ${ipInfo.city}`}
+                            </p>
+                            {ipInfo.organization_name && (
+                              <p>
+                                <span className="font-semibold">Org / ISP:</span>{' '}
+                                {ipInfo.organization_name}
+                              </p>
+                            )}
+                            {ipInfo.timezone && (
+                              <p>
+                                <span className="font-semibold">Timezone:</span>{' '}
+                                {ipInfo.timezone}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </>
                     )}
                     {selectedStudent.submitted_at && (
                       <p>
@@ -561,6 +709,10 @@ export default function AdminPage() {
                             email: editableStudent.email,
                             phone_number: editableStudent.phone_number,
                             blood_group: editableStudent.blood_group,
+                            gender: editableStudent.gender,
+                            facebook_url: editableStudent.facebook_url,
+                            twitter_url: editableStudent.twitter_url,
+                            linkedin_url: editableStudent.linkedin_url,
                           })
                           .eq('id', editableStudent.id);
                         if (error) throw error;
