@@ -109,6 +109,22 @@ function App() {
     },
     staleTime: Infinity,
   });
+
+  // Total count of authorized students from Supabase
+  const { data: onlineCount } = useQuery<number>({
+    queryKey: ['students', 'online-count'],
+    enabled: isSupabaseConfigured,
+    queryFn: async () => {
+      if (!supabase) return 0;
+      const { count, error } = await supabase
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .eq('authorized', 1);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 1000 * 60,
+  });
   // Supabase students (online) with infinite scroll
   const {
     data: onlinePages,
@@ -181,6 +197,9 @@ function App() {
   const hasMore = dataMode === 'online' ? Boolean(hasNextPage) : false;
   const fetchingMore = dataMode === 'online' ? Boolean(isFetchingNextPage) : false;
   const loading = dataMode === 'online' ? isOnlineLoading : false;
+  const totalCount = dataMode === 'online' && typeof onlineCount === 'number'
+    ? onlineCount
+    : offlineStudents.length;
 
   // Infinite Scroll: Attach scroll listener (online only)
   useEffect(() => {
@@ -296,6 +315,13 @@ function App() {
           </p>
           <p className="text-2xl md:text-3xl font-semibold italic text-emerald-200 animate-fade-in-up">
             Return 0; — Graduation Day
+          </p>
+          <p className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 text-emerald-100 text-xs sm:text-sm border border-emerald-400/60">
+            <span className="h-2 w-2 rounded-full bg-emerald-300" />
+            Total registrations:{' '}
+            <span className="font-semibold">
+              {totalCount}
+            </span>
           </p>
 
           <form
