@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.tsx';
 import UploadPage from './pages/UploadPage.tsx';
 import AdminPage from './pages/AdminPage.tsx';
+import StudentPage from './pages/StudentPage.tsx';
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<App />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/student/:student_id" element={<StudentPage />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

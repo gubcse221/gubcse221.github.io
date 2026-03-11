@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, isSupabaseConfigured, Student } from './lib/supabase';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
   Search,
   Facebook,
@@ -386,9 +387,10 @@ function App() {
                 '/assets/cover.JPG';
 
               return (
-                <article
+                <Link
+                  to={`/student/${student.student_id}`}
                   key={student.id}
-                  className="group relative rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 border border-emerald-500/15 bg-slate-900/80 glass-panel animate-fade-in-up"
+                  className="group block relative rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 border border-emerald-500/15 bg-slate-900/80 glass-panel animate-fade-in-up"
                 >
                   {/* Cover banner with gradient overlay */}
                   <div
@@ -492,7 +494,7 @@ function App() {
                       )}
                     </div>
                   </div>
-                </article>
+                </Link>
               );
             })}
           </div>
