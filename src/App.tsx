@@ -387,12 +387,9 @@ function App() {
                 '/assets/cover.JPG';
 
               return (
-                <Link
-                  to={`/student/${student.student_id}`}
-                  key={student.id}
-                  className="group block relative rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 border border-emerald-500/15 bg-slate-900/80 glass-panel animate-fade-in-up"
-                >
-                  {/* Cover banner with gradient overlay */}
+                <div key={student.id}
+                className="group block relative rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 border border-emerald-500/15 bg-slate-900/80 glass-panel animate-fade-in-up">
+                {/* Cover banner with gradient overlay */}
                   <div
                     className="relative h-28 sm:h-36 bg-cover bg-center"
                     style={{ backgroundImage: `url(${cover})` }}
@@ -413,6 +410,10 @@ function App() {
 
                   {/* Content section */}
                   <div className="px-4 sm:px-5 pb-4 sm:pb-6 pt-1 sm:pt-2 text-center">
+                    <Link
+                      to={`/student/${student.student_id}`}
+                      
+                    >
                     <h3 className="font-semibold text-slate-50 text-base sm:text-lg leading-tight mb-0.5 tracking-tight break-words">
                       {student.name}
                     </h3>
@@ -439,6 +440,7 @@ function App() {
                       )}
                     </div>
 
+                      </Link>
                     {/* Social links - modern circular icon buttons */}
                     <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
                       {student.phone_number && (
@@ -494,7 +496,7 @@ function App() {
                       )}
                     </div>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
