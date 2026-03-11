@@ -22,6 +22,12 @@ export interface Student {
   twitter_url?: string;
   linkedin_url?: string;
   email?: string;
+   hometown?: string;
+   permanent_address?: string;
+   present_address?: string;
+   religion?: string;
+   job_designation?: string;
+   organization_name?: string;
   created_at: string;
   submitted_at?: string;
   blood_group?: string;

@@ -95,6 +95,11 @@ Build for production (Vite):
 ```bash
 npm run build
 ```
+```bash
+
+npx supabase db push --db-url "postgresql://postgres:5c6bfabc8e3f4fd69591083e7fef680d@172.16.0.14:5432/postgres"
+
+```
 
 ### Application Flows
 

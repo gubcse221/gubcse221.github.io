@@ -143,6 +143,12 @@ export default function AdminPage() {
           facebook_url: s.facebook_url,
           twitter_url: s.twitter_url,
           linkedin_url: s.linkedin_url,
+          hometown: s.hometown,
+          permanent_address: s.permanent_address,
+          present_address: s.present_address,
+          religion: s.religion,
+          job_designation: s.job_designation,
+          organization_name: s.organization_name,
         })
         .eq('id', s.id);
       if (error) throw error;
@@ -186,6 +192,74 @@ export default function AdminPage() {
     },
     onError: () => {
       setMessage({ type: 'error', text: 'Failed to export JSON.' });
+    },
+  });
+
+  const restoreFromJsonMutation = useMutation({
+    mutationFn: async () => {
+      if (!supabase) throw new Error('Supabase not configured');
+
+      // Load students from local JSON (same shape as students.json export)
+      let mod: any;
+      try {
+        mod = await import('../data/students.json');
+      } catch {
+        const resp = await fetch('../data/students.json');
+        if (!resp.ok) {
+          throw new Error('Could not load students.json');
+        }
+        mod = await resp.json();
+      }
+      const raw = mod.default ?? mod;
+      const students = (raw.students ?? raw) as Student[];
+
+      if (!Array.isArray(students) || students.length === 0) {
+        throw new Error('No students found in JSON');
+      }
+
+      // Prepare payload for upsert (on student_id)
+      const payload = students.map((s) => ({
+        student_id: s.student_id,
+        name: s.name,
+        email: s.email,
+        phone_number: s.phone_number,
+        facebook_url: s.facebook_url,
+        twitter_url: s.twitter_url,
+        linkedin_url: s.linkedin_url,
+        profile_photo_url: s.profile_photo_url,
+        cover_photo_url: s.cover_photo_url,
+        profile_photo_base64: s.profile_photo_base64,
+        cover_photo_base64: s.cover_photo_base64,
+        blood_group: s.blood_group,
+        gender: s.gender,
+        hometown: s.hometown,
+        permanent_address: s.permanent_address,
+        present_address: s.present_address,
+        religion: s.religion,
+        job_designation: s.job_designation,
+        organization_name: s.organization_name,
+        submit_ip: s.submit_ip,
+        submitted_at: s.submitted_at,
+        authorized: (s as any).authorized ?? 0,
+      }));
+
+      const { error } = await supabase
+        .from('students')
+        .upsert(payload, { onConflict: 'student_id' });
+      if (error) throw error;
+      return payload.length;
+    },
+    onSuccess: (count) => {
+      setMessage({
+        type: 'success',
+        text: `Restored ${count} students from JSON into database.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      setTimeout(() => setMessage(null), 2500);
+    },
+    onError: (err) => {
+      const text = err instanceof Error ? err.message : 'Failed to restore from JSON.';
+      setMessage({ type: 'error', text });
     },
   });
 
@@ -415,6 +489,15 @@ export default function AdminPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => restoreFromJsonMutation.mutate()}
+              disabled={restoreFromJsonMutation.isPending}
+              className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white px-4 py-3 rounded-lg font-semibold transition-colors"
+            >
+              <Download size={18} />
+              {restoreFromJsonMutation.isPending ? 'Restoring...' : 'Restore from JSON'}
+            </button>
             <button
               type="button"
               onClick={() => exportJsonMutation.mutate()}
@@ -691,6 +774,102 @@ export default function AdminPage() {
                         setEditableStudent({
                           ...editableStudent,
                           blood_group: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Hometown
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.hometown || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          hometown: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Permanent Address
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.permanent_address || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          permanent_address: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Present Address
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.present_address || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          present_address: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Religion
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.religion || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          religion: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Job Designation
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.job_designation || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          job_designation: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-gray-600">
+                      Organization Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editableStudent.organization_name || ''}
+                      onChange={(e) =>
+                        setEditableStudent({
+                          ...editableStudent,
+                          organization_name: e.target.value,
                         })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"

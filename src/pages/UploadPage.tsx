@@ -16,6 +16,12 @@ export default function UploadPage() {
     linkedin_url: '',
     blood_group: '',
     gender: '',
+    hometown: '',
+    permanent_address: '',
+    present_address: '',
+    religion: '',
+    job_designation: '',
+    organization_name: '',
   });
 
   const [profilePhoto, setProfilePhoto] = useState<string>('');
@@ -166,6 +172,12 @@ export default function UploadPage() {
         linkedin_url: formData.linkedin_url || null,
         blood_group: formData.blood_group || null,
         gender: formData.gender || null,
+        hometown: formData.hometown || null,
+        permanent_address: formData.permanent_address || null,
+        present_address: formData.present_address || null,
+        religion: formData.religion || null,
+        job_designation: formData.job_designation || null,
+        organization_name: formData.organization_name || null,
         profile_photo_base64: profilePhoto,
         cover_photo_base64: coverPhoto,
         profile_photo_url: '',
@@ -207,6 +219,12 @@ export default function UploadPage() {
         linkedin_url: '',
         blood_group: '',
         gender: '',
+        hometown: '',
+        permanent_address: '',
+        present_address: '',
+        religion: '',
+        job_designation: '',
+        organization_name: '',
       });
       setProfilePhoto('');
       setCoverPhoto('');
@@ -378,6 +396,159 @@ export default function UploadPage() {
                     <option value="AB-">AB-</option>
                     <option value="O+">O+</option>
                     <option value="O-">O-</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Hometown (District)
+                  </label>
+                  <select
+                    name="hometown"
+                    value={formData.hometown}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select district</option>
+                    <option value="Barguna">Barguna</option>
+                    <option value="Barishal">Barishal</option>
+                    <option value="Bhola">Bhola</option>
+                    <option value="Jhalokati">Jhalokati</option>
+                    <option value="Patuakhali">Patuakhali</option>
+                    <option value="Pirojpur">Pirojpur</option>
+                    <option value="Bandarban">Bandarban</option>
+                    <option value="Brahmanbaria">Brahmanbaria</option>
+                    <option value="Chandpur">Chandpur</option>
+                    <option value="Chattogram">Chattogram</option>
+                    <option value="Cumilla">Cumilla</option>
+                    <option value="Cox's Bazar">Cox's Bazar</option>
+                    <option value="Feni">Feni</option>
+                    <option value="Khagrachhari">Khagrachhari</option>
+                    <option value="Lakshmipur">Lakshmipur</option>
+                    <option value="Noakhali">Noakhali</option>
+                    <option value="Rangamati">Rangamati</option>
+                    <option value="Dhaka">Dhaka</option>
+                    <option value="Faridpur">Faridpur</option>
+                    <option value="Gazipur">Gazipur</option>
+                    <option value="Gopalganj">Gopalganj</option>
+                    <option value="Kishoreganj">Kishoreganj</option>
+                    <option value="Madaripur">Madaripur</option>
+                    <option value="Manikganj">Manikganj</option>
+                    <option value="Munshiganj">Munshiganj</option>
+                    <option value="Narayanganj">Narayanganj</option>
+                    <option value="Narsingdi">Narsingdi</option>
+                    <option value="Rajbari">Rajbari</option>
+                    <option value="Shariatpur">Shariatpur</option>
+                    <option value="Tangail">Tangail</option>
+                    <option value="Bagerhat">Bagerhat</option>
+                    <option value="Chuadanga">Chuadanga</option>
+                    <option value="Jashore">Jashore</option>
+                    <option value="Jhenaidah">Jhenaidah</option>
+                    <option value="Khulna">Khulna</option>
+                    <option value="Kushtia">Kushtia</option>
+                    <option value="Magura">Magura</option>
+                    <option value="Meherpur">Meherpur</option>
+                    <option value="Narail">Narail</option>
+                    <option value="Satkhira">Satkhira</option>
+                    <option value="Jamalpur">Jamalpur</option>
+                    <option value="Mymensingh">Mymensingh</option>
+                    <option value="Netrakona">Netrakona</option>
+                    <option value="Sherpur">Sherpur</option>
+                    <option value="Bogura">Bogura</option>
+                    <option value="Joypurhat">Joypurhat</option>
+                    <option value="Naogaon">Naogaon</option>
+                    <option value="Natore">Natore</option>
+                    <option value="Chapainawabganj">Chapainawabganj</option>
+                    <option value="Pabna">Pabna</option>
+                    <option value="Rajshahi">Rajshahi</option>
+                    <option value="Sirajganj">Sirajganj</option>
+                    <option value="Dinajpur">Dinajpur</option>
+                    <option value="Gaibandha">Gaibandha</option>
+                    <option value="Kurigram">Kurigram</option>
+                    <option value="Lalmonirhat">Lalmonirhat</option>
+                    <option value="Nilphamari">Nilphamari</option>
+                    <option value="Panchagarh">Panchagarh</option>
+                    <option value="Rangpur">Rangpur</option>
+                    <option value="Thakurgaon">Thakurgaon</option>
+                    <option value="Habiganj">Habiganj</option>
+                    <option value="Moulvibazar">Moulvibazar</option>
+                    <option value="Sunamganj">Sunamganj</option>
+                    <option value="Sylhet">Sylhet</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Permanent Address
+                  </label>
+                  <input
+                    type="text"
+                    name="permanent_address"
+                    value={formData.permanent_address}
+                    onChange={handleInputChange}
+                    placeholder="Village/Area, Post, Thana, District"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Present Address
+                  </label>
+                  <input
+                    type="text"
+                    name="present_address"
+                    value={formData.present_address}
+                    onChange={handleInputChange}
+                    placeholder="Current living address"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Organization Name
+                  </label>
+                  <input
+                    type="text"
+                    name="organization_name"
+                    value={formData.organization_name}
+                    onChange={handleInputChange}
+                    placeholder="Company / University / Organization"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Job Designation
+                  </label>
+                  <input
+                    type="text"
+                    name="job_designation"
+                    value={formData.job_designation}
+                    onChange={handleInputChange}
+                    placeholder="Software Engineer, Lecturer, etc."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Religion
+                  </label>
+                  <select
+                    name="religion"
+                    value={formData.religion}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select religion</option>
+                    <option value="Islam">Islam</option>
+                    <option value="Hinduism">Hinduism</option>
+                    <option value="Buddhism">Buddhism</option>
+                    <option value="Christianity">Christianity</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
               </div>
@@ -609,6 +780,12 @@ export default function UploadPage() {
                       linkedin_url: '',
                       blood_group: '',
                       gender: '',
+                      hometown: '',
+                      permanent_address: '',
+                      present_address: '',
+                      religion: '',
+                      job_designation: '',
+                      organization_name: '',
                     });
                     setProfilePhoto('');
                     setCoverPhoto('');

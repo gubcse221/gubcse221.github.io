@@ -1,0 +1,7 @@
+# Supabase (required for app to load data)
+# Get these from: Supabase Dashboard → Project Settings → API
+VITE_SUPABASE_URL=https://ygusjilpvbqccyrbsiuq.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_L3ruhxo12SD1ePGdctwtlg_DUqmq3wW
+
+# Optional: restrict admin panel to this email (leave empty to allow any signed-in user)
+# VITE_ADMIN_EMAIL=admin@example.com

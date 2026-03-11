@@ -391,12 +391,25 @@ function App() {
                     <p className="text-emerald-300 font-medium text-xs sm:text-sm">
                       {student.student_id}
                     </p>
-                    {student.blood_group && (
-                      <p className="text-rose-300 font-medium text-[11px] sm:text-xs mb-3">
-                        Blood group: {student.blood_group}
-                      </p>
-                    )}
-                    {!student.blood_group && <div className="mb-4 sm:mb-5" />}
+                    <div className="mt-1 mb-3 space-y-0.5">
+                      {student.blood_group && (
+                        <p className="text-rose-300 font-medium text-[11px] sm:text-xs">
+                          Blood group: {student.blood_group}
+                        </p>
+                      )}
+                      {student.hometown && (
+                        <p className="text-sky-200 text-[11px] sm:text-xs truncate">
+                          {student.hometown}
+                        </p>
+                      )}
+                      {student.organization_name && (
+                        <p className="text-emerald-200 text-[11px] sm:text-xs truncate">
+                          {student.job_designation
+                            ? `${student.job_designation}, ${student.organization_name}`
+                            : student.organization_name}
+                        </p>
+                      )}
+                    </div>
 
                     {/* Social links - modern circular icon buttons */}
                     <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
