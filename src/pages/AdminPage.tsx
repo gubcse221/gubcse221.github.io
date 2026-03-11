@@ -489,7 +489,7 @@ export default function AdminPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button
+            {/* <button
               type="button"
               onClick={() => restoreFromJsonMutation.mutate()}
               disabled={restoreFromJsonMutation.isPending}
@@ -497,7 +497,7 @@ export default function AdminPage() {
             >
               <Download size={18} />
               {restoreFromJsonMutation.isPending ? 'Restoring...' : 'Restore from JSON'}
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={() => exportJsonMutation.mutate()}
