@@ -54,7 +54,7 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const pendingQuery = useQuery<Student[]>({
+  const {data:pendingQuery, isLoading:isPendingLoading} = useQuery<Student[]>({
     queryKey: ['students', 'pending'],
     enabled: authenticated && !!supabase,
     queryFn: async () => {
@@ -84,9 +84,9 @@ export default function AdminPage() {
     staleTime: 1000 * 15,
   });
 
-  const pendingStudents = pendingQuery.data || [];
+  const pendingStudents = pendingQuery || [];
   const approvedStudents = approvedQuery.data || [];
-  const loading = pendingQuery.isLoading || approvedQuery.isLoading;
+  const loading = isPendingLoading || approvedQuery.isLoading;
 
   const selectedStudentLatest = useMemo(() => {
     if (!selectedStudent) return null;
