@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
-import { Facebook, Linkedin, Mail, PhoneCall } from 'lucide-react';
+import { Facebook, Linkedin, Mail, PhoneCall, XIcon } from 'lucide-react';
 
 async function loadStudentFromJson(studentId: string): Promise<Student | null> {
   try {
@@ -271,6 +271,23 @@ export default function StudentPage() {
                   </td>
                 </tr>
                 <tr>
+                  <td className="pr-2 py-1 align-top font-semibold">X.com (Twitter) URL:</td>
+                  <td className="py-1">
+                    {student.twitter_url ? (
+                      <a
+                        href={student.twitter_url}
+                        className="text-sky-200 underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {student.twitter_url}
+                      </a>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                </tr>
+                <tr>
                   <td className="pr-2 py-1 align-top font-semibold">LinkedIn URL:</td>
                   <td className="py-1">
                     {student.linkedin_url ? (
@@ -328,6 +345,17 @@ export default function StudentPage() {
                   <Facebook size={14} />
                   Facebook
                 </a>
+              )}
+               {student.twitter_url && (
+                <a
+                  href={student.twitter_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/20 text-sky-200 border border-sky-400/50 text-xs sm:text-sm"
+                >
+                  <XIcon size={14} />
+                  X.com (Twitter)
+                  </a>
               )}
               {student.linkedin_url && (
                 <a
