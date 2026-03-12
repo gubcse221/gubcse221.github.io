@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured, Student } from '../lib/supabase';
-import { CheckCircle, XCircle, Trash2, LogOut, Download } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, LogOut, Download, RefreshCw } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL?.trim(); // Optional: only this email can access admin
@@ -21,6 +21,9 @@ export default function AdminPage() {
   const [pendingPage, setPendingPage] = useState(1);
   const [approvedPage, setApprovedPage] = useState(1);
   const PAGE_SIZE = 10;
+
+  // Search State
+  const [search, setSearch] = useState('');
 
   const saveButtonRef = useRef<HTMLButtonElement>(null); // ref for Save Changes button
 
@@ -58,7 +61,8 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: pendingQuery, isLoading: isPendingLoading } = useQuery<Student[]>({
+  // Queries for student lists
+  const { data: pendingQuery, isLoading: isPendingLoading, refetch: refetchPending } = useQuery<Student[]>({
     queryKey: ['students', 'pending'],
     enabled: authenticated && !!supabase,
     queryFn: async () => {
@@ -73,7 +77,7 @@ export default function AdminPage() {
     staleTime: 1000 * 15,
   });
 
-  const approvedQuery = useQuery<Student[]>({
+  const { data: approvedQueryData, isLoading: isApprovedLoading, refetch: refetchApproved } = useQuery<Student[]>({
     queryKey: ['students', 'approved'],
     enabled: authenticated && !!supabase,
     queryFn: async () => {
@@ -88,9 +92,20 @@ export default function AdminPage() {
     staleTime: 1000 * 15,
   });
 
-  const pendingStudents = pendingQuery || [];
-  const approvedStudents = approvedQuery.data || [];
-  const loading = isPendingLoading || approvedQuery.isLoading;
+  // Filtering logic for search
+  function studentMatchesSearch(student: Student, search: string) {
+    if (!search) return true;
+    const lower = search.toLowerCase();
+    return (
+      (student.student_id && student.student_id.toLowerCase().includes(lower)) ||
+      (student.name && student.name.toLowerCase().includes(lower)) ||
+      (student.phone_number && student.phone_number.toLowerCase().includes(lower))
+    );
+  }
+
+  const pendingStudents = (pendingQuery || []).filter(s => studentMatchesSearch(s, search));
+  const approvedStudents = (approvedQueryData || []).filter(s => studentMatchesSearch(s, search));
+  const loading = isPendingLoading || isApprovedLoading;
 
   const pendingTotalPages = Math.max(1, Math.ceil(pendingStudents.length / PAGE_SIZE));
   const approvedTotalPages = Math.max(1, Math.ceil(approvedStudents.length / PAGE_SIZE));
@@ -336,6 +351,12 @@ export default function AdminPage() {
     };
   }, [handleF9Save]);
 
+  // Manual refresh function
+  const handleRefresh = () => {
+    refetchPending();
+    refetchApproved();
+  };
+
   if (!isSupabaseConfigured) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50 flex items-center justify-center p-4">
@@ -431,6 +452,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-teal-50">
       <div className="container mx-auto px-4 py-8">
+        {/* Top bar with right-aligned refresh/export/signout/dir & left-aligned title */}
         <div className="mb-8 flex flex-wrap justify-between items-center gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-800">Admin Panel</h1>
@@ -438,7 +460,29 @@ export default function AdminPage() {
               {userEmail ? `Signed in as ${userEmail}` : 'Manage student submissions'}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Search bar */}
+            <input
+              type="text"
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                setPendingPage(1);
+                setApprovedPage(1);
+              }}
+              placeholder="Search by Student ID, Name, or Phone"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-52 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              style={{ minWidth: "180px" }}
+            />
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              title="Refresh"
+              className="inline-flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white px-3 py-3 rounded-lg font-semibold transition-colors"
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+            </button>
             {/* <button
               type="button"
               onClick={() => restoreFromJsonMutation.mutate()}
