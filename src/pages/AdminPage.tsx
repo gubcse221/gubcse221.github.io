@@ -17,6 +17,10 @@ export default function AdminPage() {
   const [ipInfo, setIpInfo] = useState<any | null>(null);
   const [ipLoading, setIpLoading] = useState(false);
   const [ipError, setIpError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
+  const [pendingPage, setPendingPage] = useState(1);
+  const [approvedPage, setApprovedPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const saveButtonRef = useRef<HTMLButtonElement>(null); // ref for Save Changes button
 
@@ -54,7 +58,7 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const {data:pendingQuery, isLoading:isPendingLoading} = useQuery<Student[]>({
+  const { data: pendingQuery, isLoading: isPendingLoading } = useQuery<Student[]>({
     queryKey: ['students', 'pending'],
     enabled: authenticated && !!supabase,
     queryFn: async () => {
@@ -87,6 +91,18 @@ export default function AdminPage() {
   const pendingStudents = pendingQuery || [];
   const approvedStudents = approvedQuery.data || [];
   const loading = isPendingLoading || approvedQuery.isLoading;
+
+  const pendingTotalPages = Math.max(1, Math.ceil(pendingStudents.length / PAGE_SIZE));
+  const approvedTotalPages = Math.max(1, Math.ceil(approvedStudents.length / PAGE_SIZE));
+
+  const pagedPending = pendingStudents.slice(
+    (pendingPage - 1) * PAGE_SIZE,
+    pendingPage * PAGE_SIZE
+  );
+  const pagedApproved = approvedStudents.slice(
+    (approvedPage - 1) * PAGE_SIZE,
+    approvedPage * PAGE_SIZE
+  );
 
   const selectedStudentLatest = useMemo(() => {
     if (!selectedStudent) return null;
@@ -195,73 +211,7 @@ export default function AdminPage() {
     },
   });
 
-  const restoreFromJsonMutation = useMutation({
-    mutationFn: async () => {
-      if (!supabase) throw new Error('Supabase not configured');
-
-      // Load students from local JSON (same shape as students.json export)
-      let mod: any;
-      try {
-        mod = await import('../data/students.json');
-      } catch {
-        const resp = await fetch('../data/students.json');
-        if (!resp.ok) {
-          throw new Error('Could not load students.json');
-        }
-        mod = await resp.json();
-      }
-      const raw = mod.default ?? mod;
-      const students = (raw.students ?? raw) as Student[];
-
-      if (!Array.isArray(students) || students.length === 0) {
-        throw new Error('No students found in JSON');
-      }
-
-      // Prepare payload for upsert (on student_id)
-      const payload = students.map((s) => ({
-        student_id: s.student_id,
-        name: s.name,
-        email: s.email,
-        phone_number: s.phone_number,
-        facebook_url: s.facebook_url,
-        twitter_url: s.twitter_url,
-        linkedin_url: s.linkedin_url,
-        profile_photo_url: s.profile_photo_url,
-        cover_photo_url: s.cover_photo_url,
-        profile_photo_base64: s.profile_photo_base64,
-        cover_photo_base64: s.cover_photo_base64,
-        blood_group: s.blood_group,
-        gender: s.gender,
-        hometown: s.hometown,
-        permanent_address: s.permanent_address,
-        present_address: s.present_address,
-        religion: s.religion,
-        job_designation: s.job_designation,
-        organization_name: s.organization_name,
-        submit_ip: s.submit_ip,
-        submitted_at: s.submitted_at,
-        authorized: (s as any).authorized ?? 0,
-      }));
-
-      const { error } = await supabase
-        .from('students')
-        .upsert(payload, { onConflict: 'student_id' });
-      if (error) throw error;
-      return payload.length;
-    },
-    onSuccess: (count) => {
-      setMessage({
-        type: 'success',
-        text: `Restored ${count} students from JSON into database.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ['students'] });
-      setTimeout(() => setMessage(null), 2500);
-    },
-    onError: (err) => {
-      const text = err instanceof Error ? err.message : 'Failed to restore from JSON.';
-      setMessage({ type: 'error', text });
-    },
-  });
+  // (restoreFromJsonMutation previously used for local JSON restore; removed to keep lints clean)
 
   // Fetch geo info for selected student's IP using geo.js
   useEffect(() => {
@@ -545,102 +495,189 @@ export default function AdminPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                Pending Approvals ({pendingStudents.length})
-              </h2>
-
-              {loading ? (
-                <p className="text-gray-600">Loading...</p>
-              ) : pendingStudents.length === 0 ? (
-                <p className="text-gray-600 text-center py-8">No pending submissions</p>
-              ) : (
-                <div className="space-y-4">
-                  {pendingStudents.map((student) => (
-                    <div
-                      key={student.id}
-                      className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        setSelectedStudent(student);
-                        setEditableStudent(student);
-                      }}
-                    >
-                      <img
-                        src={student.profile_photo_base64 || student.profile_photo_url}
-                        alt={student.name}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-800">{student.name}</h3>
-                        <p className="text-sm text-gray-600">
-                          {student.student_id}
-                          {student.blood_group && ` · ${student.blood_group}`}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">
-                          {student.submitted_at &&
-                            new Date(student.submitted_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+            <div className="bg-white rounded-2xl shadow-lg p-6 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="inline-flex rounded-full bg-gray-100 p-1 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('pending')}
+                    className={`px-3 py-1 rounded-full font-semibold ${
+                      activeTab === 'pending'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-gray-700'
+                    }`}
+                  >
+                    Pending ({pendingStudents.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('approved')}
+                    className={`px-3 py-1 rounded-full font-semibold ${
+                      activeTab === 'approved'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-gray-700'
+                    }`}
+                  >
+                    Approved ({approvedStudents.length})
+                  </button>
                 </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <CheckCircle className="text-emerald-600" size={24} />
-                Approved Students ({approvedStudents.length})
-              </h2>
-
-              {approvedStudents.length === 0 ? (
-                <p className="text-gray-600 text-center py-8">No approved students yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {approvedStudents.map((student) => (
-                    <div
-                      key={student.id}
-                      className="flex items-center gap-4 p-3 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors"
-                      onClick={() => {
-                        setSelectedStudent(student);
-                        setEditableStudent(student);
-                      }}
-                    >
-                      <img
-                        src={student.profile_photo_url || student.profile_photo_base64}
-                        alt={student.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-800">{student.name}</h3>
-                        <p className="text-sm text-gray-600">
-                          {student.student_id}
-                          {student.blood_group && ` · ${student.blood_group}`}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end text-xs text-gray-500 mr-2">
-                        {student.approved_by && <span>Approved by {student.approved_by}</span>}
-                        {student.approved_at && (
-                          <span>
-                            {new Date(student.approved_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                      <CheckCircle className="text-emerald-600 shrink-0" size={20} />
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(student); }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
+                <div className="text-xs text-gray-500">
+                  {activeTab === 'pending'
+                    ? `Page ${pendingPage} of ${pendingTotalPages}`
+                    : `Page ${approvedPage} of ${approvedTotalPages}`}
                 </div>
+              </div>
+
+              {activeTab === 'pending' ? (
+                <>
+                  <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    Pending Approvals
+                  </h2>
+                  {loading ? (
+                    <p className="text-gray-600">Loading...</p>
+                  ) : pendingStudents.length === 0 ? (
+                    <p className="text-gray-600 text-center py-8">No pending submissions</p>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                        {pagedPending.map((student) => (
+                          <div
+                            key={student.id}
+                            className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              setSelectedStudent(student);
+                              setEditableStudent(student);
+                            }}
+                          >
+                            <img
+                              src={student.profile_photo_base64 || student.profile_photo_url}
+                              alt={student.name}
+                              className="w-16 h-16 rounded-lg object-cover"
+                            />
+                            <div className="flex-1">
+                              <h3 className="font-bold text-gray-800">{student.name}</h3>
+                              <p className="text-sm text-gray-600">
+                                {student.student_id}
+                                {student.blood_group && ` · ${student.blood_group}`}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500">
+                                {student.submitted_at &&
+                                  new Date(student.submitted_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center mt-4 text-xs text-gray-600">
+                        <button
+                          type="button"
+                          disabled={pendingPage <= 1}
+                          onClick={() => setPendingPage((p) => Math.max(1, p - 1))}
+                          className="px-3 py-1 rounded-lg border border-gray-300 disabled:opacity-50"
+                        >
+                          Previous
+                        </button>
+                        <span>
+                          Page {pendingPage} of {pendingTotalPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={pendingPage >= pendingTotalPages}
+                          onClick={() =>
+                            setPendingPage((p) => Math.min(pendingTotalPages, p + 1))
+                          }
+                          className="px-3 py-1 rounded-lg border border-gray-300 disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <CheckCircle className="text-emerald-600" size={20} />
+                    Approved Students
+                  </h2>
+                  {approvedStudents.length === 0 ? (
+                    <p className="text-gray-600 text-center py-8">No approved students yet</p>
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        {pagedApproved.map((student) => (
+                          <div
+                            key={student.id}
+                            className="flex items-center gap-4 p-3 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors"
+                            onClick={() => {
+                              setSelectedStudent(student);
+                              setEditableStudent(student);
+                            }}
+                          >
+                            <img
+                              src={student.profile_photo_url || student.profile_photo_base64}
+                              alt={student.name}
+                              className="w-12 h-12 rounded-lg object-cover"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-800">{student.name}</h3>
+                              <p className="text-sm text-gray-600">
+                                {student.student_id}
+                                {student.blood_group && ` · ${student.blood_group}`}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end text-xs text-gray-500 mr-2">
+                              {student.approved_by && <span>Approved by {student.approved_by}</span>}
+                              {student.approved_at && (
+                                <span>
+                                  {new Date(student.approved_at).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            <CheckCircle className="text-emerald-600 shrink-0" size={20} />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(student);
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center mt-4 text-xs text-gray-600">
+                        <button
+                          type="button"
+                          disabled={approvedPage <= 1}
+                          onClick={() => setApprovedPage((p) => Math.max(1, p - 1))}
+                          className="px-3 py-1 rounded-lg border border-gray-300 disabled:opacity-50"
+                        >
+                          Previous
+                        </button>
+                        <span>
+                          Page {approvedPage} of {approvedTotalPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={approvedPage >= approvedTotalPages}
+                          onClick={() =>
+                            setApprovedPage((p) => Math.min(approvedTotalPages, p + 1))
+                          }
+                          className="px-3 py-1 rounded-lg border border-gray-300 disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </div>
           </div>
